@@ -124,7 +124,7 @@ def run_http_server():
 
 
 if __name__ == "__main__":
-    http_thread = threading.Thread(target=run_http_server)
-    http_thread.start()
+    # http_thread = threading.Thread(target=run_http_server)
+    # http_thread.start()
 
     asyncio.run(main())

@@ -72,6 +72,7 @@ class Performer:
     def logPrompt(self, prompt):
         logPrompt = copy.deepcopy(prompt)
         logPrompt['timeStamp'] = timeStamp()
+        logPrompt['userId'] = self.__userId
         self.__promptHistory.append(logPrompt)
 
     def ignorePrompt(self, prompt):
@@ -89,8 +90,6 @@ class Performer:
             self.__feedbackLog[type] = []
         self.__feedbackLog[type].append({'question': question,
                                    'response': response})
-        print(f"Log: {self.__feedbackLog}")
-        # self.__feedbackLog.append
 
     def updateUserData(self, message):
         self.__userId = message.get('userId')

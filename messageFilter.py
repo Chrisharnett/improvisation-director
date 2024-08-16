@@ -3,10 +3,13 @@ from directorPrompts.directorPrompts\
     generateRoomName, \
     gettingToKnowYou
 from objects.Room import Room
+from util.Dynamo.logTableClient import LogTableClient
+from util.Dynamo.connections import getDynamoDbConnection
 
 def messageFilter(message, currentClient, currentRooms):
     currentRoomName = message.get('roomName') or 'lobby'
     action = message.get('action')
+    currentRoom = currentRooms[currentRoomName]
     match action:
         # Test match to connect with OpenAi API
         case 'chat':
@@ -15,7 +18,7 @@ def messageFilter(message, currentClient, currentRooms):
                     'message': chatResponse}
 
         case 'createRoom':
-            currentRoomName = generateRoomName(currentRooms.keys())
+            currentRoomName = generateRoomName()
             currentRoom = Room(currentRoomName)
             currentRooms[currentRoomName] = currentRoom
             currentClient.updateUserData(message)
@@ -26,8 +29,8 @@ def messageFilter(message, currentClient, currentRooms):
             return response
 
         case 'startPerformance':
-            currentRooms[currentRoomName].initializeGameState()
-            response = currentRooms[currentRoomName].prepareGameStateResponse('newGameState')
+            currentRoom.initializeGameState()
+            response = currentRoom.prepareGameStateResponse('newGameState')
             return response
 
         case 'joinRoom':
@@ -38,15 +41,15 @@ def messageFilter(message, currentClient, currentRooms):
                     'message': 'roomDoesNotExist'
                 }
             currentClient.updateUserData(message)
-            currentRooms[roomName].addPlayerToRoom(currentClient)
-            response = currentRooms[roomName].prepareGameStateResponse('newPlayer')
+            currentRoom.addPlayerToRoom(currentClient)
+            response = currentRoom.prepareGameStateResponse('newPlayer')
             includeFeedbackQuestionInResponse('performerLobby', currentClient.userId, response)
             return response
 
         case 'performerLobbyFeedbackResponse':
             feedbackQuestion = message.get('feedbackQuestion')
             feedbackResponse = message.get('response')
-            currentClient.logFeedback(message.get('action'), feedbackQuestion, feedbackResponse)
+            currentClient.logFeedback(action, feedbackQuestion, feedbackResponse)
             return {'feedbackQuestion': [{
                 'feedbackType': 'performerLobby',
                 'question': gettingToKnowYou().split(','),
@@ -55,35 +58,50 @@ def messageFilter(message, currentClient, currentRooms):
                     }
 
         case 'useNextPrompt':
-            currentRooms[currentRoomName].useNextPrompt(currentClient.userId)
-            return currentRooms[currentRoomName].prepareGameStateResponse('newGameState')
+            currentRoom.useNextPrompt(currentClient.userId)
+            return currentRoom.prepareGameStateResponse('newGameState')
 
         case 'ignorePrompt':
-            currentRooms[currentRoomName].ignorePrompt(currentClient.userId)
-            return currentRooms[currentRoomName].prepareGameStateResponse('newGameState')
+            currentRoom.ignorePrompt(currentClient.userId)
+            return currentRoom.prepareGameStateResponse('newGameState')
 
         case 'endSong':
-            currentRooms[currentRoomName].createSongEnding()
-            response =  currentRooms[currentRoomName].prepareGameStateResponse('endSong')
+            currentRoom.createSongEnding()
+            response =  currentRoom.prepareGameStateResponse('endSong')
             return response
 
         case 'performanceComplete':
-            currentRooms[currentRoomName].logEnding()
-            response = currentRooms[currentRoomName].getPostPerformancePerformerFeedback()
+            currentRoom.logEnding()
+            response = currentRoom.getPostPerformancePerformerFeedback()
             return response
 
         case 'postPerformancePerformerFeedbackResponse':
             response = message.get('response')
             currentClient.logFeedback(action, message.get('feedbackQuestion'), response)
-            if len(currentClient.feedbackLog[action]) <3:
-                return currentRooms[currentRoomName].getPostPerformancePerformerFeedback()
-            summary = currentRooms[currentRoomName].closingTimeSummary()
-            return {'action': 'finalSummary',
-                    'summary': summary,
+            if len(currentClient.feedbackLog[action]) < 3:
+                return currentRoom.getPostPerformancePerformerFeedback()
+            allPerformersComplete = False
+            for performer in currentRoom.performers:
+                if len(performer.feedbackLog[action]) < 3:
+                    break
+                allPerformersComplete = True
+            if allPerformersComplete:
+                currentRoom.getClosingTimeSummary()
+                currentRoom.createGameLog()
+                dumpGameLog(currentRoom.gameLog)
+                return {'action': 'finalSummary',
+                        'summary': currentRoom.summary,
+                        'roomName': currentRoomName}
+            return  {'action': 'finalSummaryPending',
                     'roomName': currentRoomName}
 
         case _:
             return
+
+def dumpGameLog(log):
+    dynamoDb = getDynamoDbConnection()
+    table = LogTableClient(dynamoDb)
+    table.putItem(log)
 
 def includeFeedbackQuestionInResponse(feedbackType, userId, response = {}):
     match feedbackType:

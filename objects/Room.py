@@ -14,7 +14,8 @@ class Room:
     def __init__(self, roomName = generateRoomName()):
         self.__performers = []
         self.__roomName = roomName
-        self.__logs = {}
+        self.__gameLog = {}
+        self.__summary = None
 
     # Getters
     @property
@@ -24,6 +25,14 @@ class Room:
     @property
     def roomName(self):
         return self.__roomName
+
+    @property
+    def gameLog(self):
+        return self.__gameLog
+
+    @property
+    def summary(self):
+        return self.__summary
 
     @performers.setter
     def performers(self, performers):
@@ -51,7 +60,8 @@ class Room:
                 'instrument': performer.instrument or '',
                 'userId': performer.userId,
                 'currentPrompts': performer.currentPrompts,
-                'promptHistory': performer.promptHistory
+                'promptHistory': performer.promptHistory,
+                'feedbackLog': performer.feedbackLog
             })
         return gameStateJSON
 
@@ -141,13 +151,6 @@ class Room:
                  'prompt': finalPrompt
                  })
 
-    def logEnding(self):
-        self.__logs['promptLog'] = []
-        self.__logs['endingTimestamp'] = timeStamp()
-        for performer in self.__performers:
-            self.__logs["promptLog"].append({"userId": performer.userId,
-                                          "promptLog": performer.promptHistory})
-
     def getPostPerformancePerformerFeedback(self):
         response = {'roomName': self.__roomName, 'feedbackQuestion': []}
         for performer in self.__performers:
@@ -156,11 +159,37 @@ class Room:
                 'feedbackType': 'postPerformancePerformerFeedback',
                 'question': postPerformancePerformerFeedback(
                     self.gameStateString(),
-                    performer.feedbackLog,
+                    performer.feedbackLog.get('postPerformancePerformerFeedbackResponse') or [],
                     performer.userId
                 )
             })
         return response
 
-    def closingTimeSummary(self):
-        return closingSummary(self.gameStateString())
+    def getClosingTimeSummary(self):
+        self.__summary = closingSummary(self.gameStateString())
+        self.createGameLog()
+        return
+
+    def logEnding(self):
+        self.__gameLog['endingTimestamp'] = timeStamp()
+
+    def createGameLog(self):
+        promptLog = []
+        performers = []
+        for performer in self.__performers:
+            performers.append({
+                'userId': performer.userId,
+                'instrument': performer.instrument,
+                'feedbackResponses': performer.feedbackLog
+            })
+            promptLog.extend(performer.promptHistory)
+
+        sortedLog = sorted(promptLog, key=lambda x: x['timeStamp'])
+
+        self.__gameLog['roomName'] = self.__roomName
+        self.__gameLog['performers'] = performers
+        self.__gameLog['promptLog'] = sortedLog
+        self.__gameLog['summary'] = self.__summary
+
+
+
