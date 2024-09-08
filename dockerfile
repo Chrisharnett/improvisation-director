@@ -7,9 +7,6 @@ WORKDIR /app
 # Copy the current directory contents into the container at /app
 COPY . /app
 
-#COPY CERT/cert.pem /app/CERT/cert.pem
-#COPY CERT/key.pem /app/CERT/key.pem
-
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -20,4 +17,4 @@ EXPOSE 8765
 ENV NAME=improvdirector
 
 # Run your backend server
-CMD ["python", "ImprovDirectorServer.py"]
+CMD ["python", "objects/WebSocketServer.py"]
