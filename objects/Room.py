@@ -16,6 +16,7 @@ class Room:
         self.__summary = None
         self.__songCount = 0
         self.__gameStatus = 'Waiting To Start'
+        self.__performanceMode = False
 
     @property
     def LLMQueryCreator(self):
@@ -64,6 +65,14 @@ class Room:
     @property
     def summary(self):
         return self.__summary
+
+    @property
+    def performanceMode(self):
+        return self.__performanceMode
+
+    @performanceMode.setter
+    def performanceMode(self, boolean):
+        self.__performanceMode = boolean
 
     async def addPlayerToRoom(self, performer):
         self.__performers.append(performer)
@@ -130,6 +139,8 @@ class Room:
                 'instrument': performer.instrument or '',
                 'userId': performer.userId,
                 'currentPrompts': performer.currentPrompts,
+                'registeredUser': performer.registeredUser,
+                'roomCreator': performer.roomCreator
             })
         return gameStateJSON
 
@@ -154,7 +165,8 @@ class Room:
         feedback = []
         for performer in self.__performers:
             feedback.append({performer.userId: performer.feedbackLog})
-        self.LLMQueryCreator.getStartingPerformerPrompts(self)
+        # self.LLMQueryCreator.getStartingPerformerPrompts(self)
+        self.LLMQueryCreator.getStartingPerformerPrompt(self)
         self.__gameStatus = "improvise"
         await self.schedulePromptUpdate('currentPrompt')
         await self.schedulePromptUpdate('harmonyAndMeterPrompt')
@@ -205,9 +217,7 @@ class Room:
                 print(f'Error: {e}')
 
         if promptTitle == 'currentPrompt':
-            self.__scheduledTasks[promptTitle] = asyncio.create_task(self.updateCurrentPrompt(interval))
-        elif promptTitle == 'harmonyAndMeterPrompt':
-            self.__scheduledTasks[promptTitle] = asyncio.create_task(self.updateHarmonyAndMeterPrompt(interval))
+            self.__scheduledTasks[promptTitle] = asyncio.create_task(self.updatePrompt(interval, promptTitle))
 
     async def updatePrompt(self, interval, promptTitle):
         print(f'update {promptTitle} in {interval} seconds')
@@ -218,30 +228,6 @@ class Room:
         await self.broadcastMessage(response, newPrompts)
         if len(self.__performers) > 0:
             await self.schedulePromptUpdate('currentPrompt')
-        else:
-            print(f"No active connections in room '{self.__roomName}'. Stopping prompt updates.")
-
-    async def updateCurrentPrompt(self, interval):
-        print(f'update current prompt in {interval} seconds')
-        await asyncio.sleep(interval)
-        newPrompts = self.LLMQueryCreator.getNewCurrentPrompt(self)
-        self.assignNewPrompts(newPrompts)
-        response = self.prepareGameStateResponse('newGameState')
-        await self.broadcastMessage(response, newPrompts)
-        if len(self.__performers) > 0:
-            await self.schedulePromptUpdate('currentPrompt')
-        else:
-            print(f"No active connections in room '{self.__roomName}'. Stopping prompt updates.")
-
-    async def updateHarmonyAndMeterPrompt(self, interval):
-        print(f'update harmony and meter prompt in {interval} seconds')
-        await asyncio.sleep(interval)
-        newPrompts = self.LLMQueryCreator.getNewHarmonyAndMeterPrompt(self.gameStateString())
-        self.assignNewPrompts(newPrompts)
-        response = self.prepareGameStateResponse('newGameState')
-        await self.broadcastMessage(response, newPrompts)
-        if len(self.__performers) > 0:
-            await self.schedulePromptUpdate('harmonyAndMeterPrompt')
         else:
             print(f"No active connections in room '{self.__roomName}'. Stopping prompt updates.")
 
@@ -311,3 +297,7 @@ class Room:
         self.songCount += 1
         self.LLMQueryCreator.refreshPerformanceLogs()
         await self.initializeGameState()
+
+    def summarizePerformance(self):
+        self.getClosingTimeSummary()
+        self.createGameLog()

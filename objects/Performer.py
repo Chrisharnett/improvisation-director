@@ -1,7 +1,11 @@
 from util.timeStamp import timeStamp
+from util.Dynamo.userTableClient import UserTableClient
+from util.Dynamo.connections import getDynamoDbConnection
 
 class Performer:
     def __init__(self, websocket, userId=None, screenName=None, instrument=None):
+        self.__dynamoDb = getDynamoDbConnection()
+        self.__table = UserTableClient(self.__dynamoDb)
         self.__websocket = websocket
         self.__userId = userId
         self.__screenName = screenName
@@ -9,6 +13,8 @@ class Performer:
         self.__currentPrompts = {}
         self.__feedbackLog = {}
         self.__promptHistory = []
+        self.__registeredUser = False
+        self.__roomCreator = False
 
     @property
     def websocket(self):
@@ -62,6 +68,22 @@ class Performer:
     def feedbackLog(self):
         return self.__feedbackLog
 
+    @property
+    def registeredUser(self):
+        return self.__registeredUser
+
+    @registeredUser.setter
+    def registeredUser(self, boolean):
+        self.__registeredUser = boolean
+
+    @property
+    def roomCreator(self):
+        return self.__roomCreator
+
+    @roomCreator.setter
+    def roomCreator(self, boolean):
+        self.__roomCreator = boolean
+
     def addPrompt(self, newPrompt):
         for promptTitle, prompt in newPrompt.items():
             if prompt:
@@ -69,6 +91,7 @@ class Performer:
                     'prompt': prompt,
                     'timeStamp': timeStamp()
                 }
+                print(f'{self.screenName} - {promptTitle} - {prompt}')
 
     def logPrompt(self, prompt, reaction=None):
         logPrompt = {
@@ -92,6 +115,13 @@ class Performer:
             'response': response
         })
 
+    def updateDynamo(self):
+        self.__table.putItem({
+            'sub': self.__userId,
+            'screenName': self.__screenName,
+            'instrument': self.__instrument
+        })
+
     def likePrompt(self, prompt, promptTitle):
         self.logPrompt({promptTitle: prompt}, 'like')
 
@@ -104,3 +134,5 @@ class Performer:
         self.__currentPrompts = {}
         self.__promptHistory = []
         self.__feedbackLog = {}
+
+

@@ -1,4 +1,3 @@
-# dynamo/promptTableClient.py
 from util.Dynamo.baseTable import BaseTable
 
 class LogTableClient(BaseTable):
