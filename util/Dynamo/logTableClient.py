@@ -1,4 +1,3 @@
-# dynamo/promptTableClient.py
 from util.Dynamo.baseTable import BaseTable
 
 class LogTableClient(BaseTable):
@@ -10,7 +9,7 @@ class LogTableClient(BaseTable):
 
     def putLog(self, roomName, log):
         """
-        Inserts an game log into the table.
+        Inserts a game log into the table.
         """
         return self.table.put_item(Item=log)
 

@@ -7,17 +7,14 @@ WORKDIR /app
 # Copy the current directory contents into the container at /app
 COPY . /app
 
-#COPY CERT/cert.pem /app/CERT/cert.pem
-#COPY CERT/key.pem /app/CERT/key.pem
-
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Make port 8765 available to the world outside this container
-EXPOSE 8765
+# Make port 8765 available. Expose port 8080 for health checks
+EXPOSE 8765 8080
 
 # Define environment variable
 ENV NAME=improvdirector
 
 # Run your backend server
-CMD ["python", "ImprovDirectorServer.py"]
+CMD ["python", "improvDirector.py"]
