@@ -122,8 +122,8 @@ class Performer:
             'instrument': self.__instrument
         })
 
-    def likePrompt(self, prompt, promptTitle):
-        self.logPrompt({promptTitle: prompt}, 'like')
+    def likePrompt(self, prompt, promptTitle, reaction=None):
+        self.logPrompt({promptTitle: prompt}, reaction)
 
     def updateUserData(self, message):
         self.__userId = message.get('userId', self.__userId)

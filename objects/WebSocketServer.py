@@ -36,17 +36,15 @@ class WebSocketServer:
                 # Store the client in the connectedClients dictionary using websocket.id
                 self.connectedClients[websocketId] = currentClient
 
-                # print(f"Sent message to user {websocketId} in room {roomName}")
-                # welcomeMessage = room.sayHello()
-                # await room.sendMessageToUser({'action': 'welcome', 'message': welcomeMessage}, currentClient)
-
             filter = MessageFilter(currentClient, self.currentRooms, queryCreator)
 
             # Now we wait for any incoming messages from the client
             async for message in self.pingWebsocket(websocket):
                 if message:
                     incomingMessage = json.loads(message)
-                    print(f"Received message from {incomingMessage.get('currentPlayer').get('screenName') or websocketId}. MESSAGE: {incomingMessage}")
+                    currentPlayer = incomingMessage.get('currentPlayer')
+                    screenName = currentPlayer.get('screenName') if currentPlayer else websocketId
+                    print(f"Received message from {screenName}. MESSAGE: {incomingMessage}")
                     roomName = incomingMessage.get("roomName", "lobby")
                     currentRoom = self.currentRooms.get(roomName)
                     userId = incomingMessage.get('userId')
