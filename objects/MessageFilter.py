@@ -12,7 +12,6 @@ class MessageFilter:
         self.__currentRoom = None
         self.__currentRoomName = None
 
-    # Property for currentClient
     @property
     def currentClient(self):
         return self.__currentClient
@@ -21,7 +20,6 @@ class MessageFilter:
     def currentClient(self, value):
         self.__currentClient = value
 
-    # Property for currentRoom
     @property
     def currentRoom(self):
         return self.__currentRoom
@@ -30,7 +28,6 @@ class MessageFilter:
     def currentRoom(self, value):
         self.__currentRoom = value
 
-    # Property for currentRoomName
     @property
     def currentRoomName(self):
         return self.__currentRoomName
@@ -39,7 +36,6 @@ class MessageFilter:
     def currentRoomName(self, value):
         self.__currentRoomName = value
 
-    # Property for broadcastHandler
     @property
     def broadcastHandler(self):
         return self.__broadcastHandler
@@ -48,18 +44,15 @@ class MessageFilter:
     def broadcastHandler(self, value):
         self.__broadcastHandler = value
 
-    # Method to handle room changes
     def updateRoom(self, newRoom):
         """Update the current room and its broadcastHandler and queryConnector."""
         self.__currentRoom = newRoom
         self.__broadcastHandler = newRoom.broadcastMessage
         newRoom.LLMQueryCreator = self.__query
 
-    # Main message handler, room is passed dynamically
     async def handleMessage(self, message, currentRoom):
         self.__currentRoomName = message.get('roomName') or 'lobby'
         self.updateRoom(currentRoom)
-
 
         action = message.get('action')
         if action:
@@ -68,11 +61,19 @@ class MessageFilter:
             return await method(message)
         return
 
+    async def handleAboutMe(self, message):
+        aboutMe = self.__query.aboutMe()
+        return {
+            'action': 'aboutMe',
+            'message': aboutMe,
+            'clients': [self.currentClient]
+        }
+
     async def handleGetCurrentPlayer(self, message):
         currentPlayer = message.get('currentPlayer')
         userId = currentPlayer.get('userId')
         currentPlayer = self.handleGetUserData(userId)
-        player = {'userId': userId, 'screenName': currentPlayer.get('screenName'), 'instrument': currentPlayer.get('instrument')}
+        player = {'userId': userId, 'screenName': currentPlayer.get('screenName', None), 'instrument': currentPlayer.get('instrument', None)}
         return {
             'action': 'playerProfileData',
             'currentPlayer': player,
@@ -91,7 +92,6 @@ class MessageFilter:
             self.currentClient.instrument = instrument
         self.handleUpdateDynamo()
 
-    # Handler for 'chat' action
     async def handleChat(self, message):
         chatResponse = self.__query.chatTest(message.get('message'))
         return {
@@ -152,16 +152,13 @@ class MessageFilter:
         if not currentPlayer.get('instrument'):
             return self.requestNewInstrument(userId, currentPlayer['screenName'])
 
-        # Step 4: Update client state with currentPlayer's most up-to-date values
         self.__currentClient.userId = userId
         self.__currentClient.screenName = currentPlayer['screenName']
         self.__currentClient.instrument = currentPlayer['instrument']
 
-        # Step 5: Update DynamoDB if user is registered
         if registeredUser:
             self.handleUpdateDynamo()
 
-        # Step 6: Handle room creation or joining
         return await self.handleRoomRegistration(message)
 
     def requestNewScreenName(self, userId):
@@ -186,11 +183,13 @@ class MessageFilter:
 
     async def handleRoomRegistration(self, message):
         currentPlayer = message.get('currentPlayer')
+        roomNameToJoin = message.get('roomName')
         if currentPlayer.get('roomCreator'):
             # Create a new room
             self.__currentRoom = Room(LLMQueryCreator=self.__query, broadcastHandler=self.__broadcastHandler)
             self.__currentRoomName = self.__currentRoom.roomName
             self.__currentRooms[self.__currentRoomName] = self.__currentRoom
+            self.currentClient.roomCreator = True
         else:
             # Join an existing room
             if not self.__currentRoomName or self.__currentRoomName == 'lobby':
@@ -202,7 +201,7 @@ class MessageFilter:
                     'responseRequired': True,
                     'responseAction': 'joinRoom'
                 }
-            self.__currentRoom = self.__currentRooms.get(self.__currentRoomName.lower())
+            self.__currentRoom = self.__currentRooms.get(roomNameToJoin.lower())
 
         # Add player to the room and update game state
         await self.__currentRoom.addPlayerToRoom(self.__currentClient)
@@ -211,8 +210,10 @@ class MessageFilter:
         response = self.__currentRoom.prepareGameStateResponse('newPlayer')
 
         # Step 7: Handle performance mode if applicable
-        if message.get('performanceMode'):
+        if message.get('performanceMode') and self.currentClient.roomCreator:
             self.__currentRoom.performanceMode = True
+
+        if self.__currentRoom.performanceMode:
             return await self.handleStartPerformance()
 
         # Provide feedback question if game is waiting to start
@@ -221,13 +222,11 @@ class MessageFilter:
 
         return response
 
-    # Handler for 'startPerformance' action
     async def handleStartPerformance(self, message=None):
         await self.__currentRoom.initializeGameState()
         response = self.__currentRoom.prepareGameStateResponse('newGameState')
         return response
 
-    # Handler for 'performerLobbyFeedbackResponse' action
     async def handlePerformerLobbyFeedbackResponse(self, message):
         feedbackQuestion = message.get('feedbackQuestion').get('question')
         feedbackResponse = message.get('response')
@@ -240,7 +239,6 @@ class MessageFilter:
         }
         return response
 
-    # Handler for 'reactToPrompt' action
     async def handleReactToPrompt(self, message):
         prompt = message.get('prompt')
         promptTitle = message.get('promptTitle')
@@ -248,14 +246,11 @@ class MessageFilter:
         await self.__currentRoom.promptReaction(self.__currentClient, prompt, promptTitle, reaction)
         return self.__currentRoom.prepareGameStateResponse('newGameState')
 
-    # Handler for 'endSong' action
     async def handleEndSong(self, message):
-        self.__query.endSong(self.__currentRoom)
+        self.__currentRoom.endSong()
         self.__currentRoom.gameStatus = message.get('action')
-        response = self.__currentRoom.prepareGameStateResponse(action='endSong')
-        return response
+        return self.__currentRoom.prepareGameStateResponse(action='endSong')
 
-    # Handler for 'performanceComplete' action
     async def handlePerformanceComplete(self, message):
         self.__currentRoom.logEnding()
         if self.currentRoom.performanceMode:
@@ -266,7 +261,6 @@ class MessageFilter:
         response['action'] = 'debrief'
         return response
 
-    # Handler for 'postPerformancePerformerFeedbackResponse' action
     async def handlePostPerformancePerformerFeedbackResponse(self, message):
         question = message.get('question')
         response = message.get('response')
@@ -300,7 +294,6 @@ class MessageFilter:
     async def handleDefault(self, message):
         return
 
-    # Method to remove a player from the lobby
     def removePlayerFromLobby(self):
         performers = self.__currentRooms['lobby'].performers
         for client in performers:
@@ -308,7 +301,6 @@ class MessageFilter:
                 performers.remove(client)
                 break
 
-    # Method to dump the game log
     def dumpGameLog(self, log):
         dynamoDb = getDynamoDbConnection()
         table = LogTableClient(dynamoDb)

@@ -2,7 +2,6 @@ from objects.WebSocketServer import WebSocketServer, runHealthCheckServer
 import threading
 import asyncio
 
-
 def main():
     healthCheckThread = threading.Thread(target=runHealthCheckServer)
     healthCheckThread.daemon = True
