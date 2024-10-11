@@ -2,17 +2,25 @@ from openai import OpenAI
 from util.awsSecretRetrieval import getAISecret
 import json
 import time
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class OpenAIConnector:
     def __init__(self):
-        oaKey, oaProject = getAISecret()
+        oaKey, oaProject, model = getAISecret()
         self.client = OpenAI(api_key=oaKey)
+        self.model = model
 
-    def getResponseFromLLM(self, prompt):
+    def getResponseFromLLM(self, prompt, systemContext=None,):
+        systemMessage = self.getSystemMessage(systemContext)
         try:
             chat_completion = self.client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": systemMessage},
+                    {"role": "user", "content": prompt}],
+                model=self.model,
             )
             content = chat_completion.choices[0].message.content.strip()
             return content
@@ -20,15 +28,17 @@ class OpenAIConnector:
             print(f"Error in LLM response: {e}")
             raise e
 
-    def getSinglePerformerPrompt(self, prompt, max_retries=3, backoff_factor=2):
+    def getSinglePerformerPrompt(self, prompt, systemContext=None, max_retries=3, backoff_factor=2):
         attempt = 0
-
+        systemMessage = self.getSystemMessage(systemContext)
         while attempt < max_retries:
             try:
                 # Make the LLM API call
                 chatCompletion = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": prompt}],
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": systemMessage},
+                        {"role": "user", "content": prompt}],
                     functions=[
                         {
                             "name": "get_performer_prompt",
@@ -36,15 +46,13 @@ class OpenAIConnector:
                             "parameters": {
                                 "type": "object",
                                 "properties": {
-                                    "performerPrompts": {
-                                            "type": "string",
-                                            "description": 'The prompt for the user. ',
-                                        }
-                                    },
-                                "required": ["performerPrompt"],
-                                "additionalProperties": False
+                                    "performerPrompt": {
+                                        "type": "string",
+                                        "description": "The new performer prompt for the user."
+                                    }
+                                },
+                                "required": ["performerPrompt"]
                             }
-
                         }
                     ],
                     function_call={"name": "get_performer_prompt"}
@@ -88,15 +96,17 @@ class OpenAIConnector:
             print(f"Retrying in {sleep_time} seconds...")
             time.sleep(sleep_time)
 
-    def getGroupPrompt(self, prompt, max_retries=3, backoff_factor=2):
+    def getGroupPrompt(self, prompt, systemContext=None, max_retries=3, backoff_factor=2):
         attempt = 0
-
+        systemMessage = self.getSystemMessage(systemContext)
         while attempt < max_retries:
             try:
                 # Make the LLM API call
                 chatCompletion = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": prompt}],
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": systemMessage},
+                        {"role": "user", "content": prompt}],
                     functions=[
                         {
                             "name": "get_group_prompt",
@@ -156,15 +166,17 @@ class OpenAIConnector:
             print(f"Retrying in {sleep_time} seconds...")
             time.sleep(sleep_time)
 
-    def getPrompts(self, prompt, title, max_retries=3, backoff_factor=2):
+    def getPrompts(self, prompt, title, systemContext=None, max_retries=3, backoff_factor=2):
         attempt = 0
-
+        systemMessage = self.getSystemMessage(systemContext)
         while attempt < max_retries:
             try:
                 # Make the LLM API call
                 chatCompletion = self.client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": prompt}],
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": systemMessage},
+                        {"role": "user", "content": prompt}],
                     functions=[
                         {
                             "name": "get_prompts",
@@ -236,7 +248,7 @@ class OpenAIConnector:
     def userOptionFeedback(self, prompt):
         try:
             chat_completion = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model=self.model,
                 messages=[{"role": "user", "content": prompt}],
                 functions=[
                     {
@@ -276,6 +288,11 @@ class OpenAIConnector:
         except Exception as e:
             print(f"Error in LLM response: {e}")
             raise e
+
+
+    def getSystemMessage(self, systemContext=None):
+        defaultMessage = "You are managing the improvisation for the performance."
+        return systemContext if systemContext else defaultMessage
 
 if __name__ == "__main__":
     connector = OpenAIConnector()

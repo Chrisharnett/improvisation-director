@@ -28,8 +28,9 @@ def getAISecret():
     secret = retrieveSecret("improv_director/openAI")
     oaKey = secret.get("OA_KEY")
     oaProject = secret.get("OA_PROJECT_ID")
+    model = secret.get("TRAINED_MODEL")
 
-    return oaKey, oaProject
+    return oaKey, oaProject, model
 
 def logBucketSecret():
     secret_name = "improv_director/logBucket"

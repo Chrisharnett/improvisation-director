@@ -247,7 +247,7 @@ class MessageFilter:
         return self.__currentRoom.prepareGameStateResponse('newGameState')
 
     async def handleEndSong(self, message):
-        self.__currentRoom.endSong()
+        await self.__currentRoom.endSong()
         self.__currentRoom.gameStatus = message.get('action')
         return self.__currentRoom.prepareGameStateResponse(action='endSong')
 
@@ -311,6 +311,7 @@ class MessageFilter:
         return self.__currentRoom.prepareGameStateResponse('newGameState')
 
     async def handleAnnounceStartPerformance(self, message):
+        self.__currentRoom.determinePersonality()
         announcement = self.__query.announceStart(self.__currentRoom)
         return  {'action': 'announcement',
                 'roomName': self.__currentRoomName,
