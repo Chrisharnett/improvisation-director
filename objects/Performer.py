@@ -15,6 +15,7 @@ class Performer:
         self.__promptHistory = []
         self.__registeredUser = False
         self.__roomCreator = False
+        self.__personality = None
 
     @property
     def websocket(self):
@@ -53,16 +54,16 @@ class Performer:
         return self.__currentPrompts
 
     @currentPrompts.setter
-    def currentPrompts(self, prompts):
-        self.__currentPrompts = prompts
+    def currentPrompts(self, currentPrompts):
+        self.__currentPrompts = currentPrompts
 
     @property
     def promptHistory(self):
         return self.__promptHistory
 
     @promptHistory.setter
-    def promptHistory(self, history):
-        self.__promptHistory = history
+    def promptHistory(self, promptHistory):
+        self.__promptHistory = promptHistory
 
     @property
     def feedbackLog(self):
@@ -73,57 +74,84 @@ class Performer:
         return self.__registeredUser
 
     @registeredUser.setter
-    def registeredUser(self, boolean):
-        self.__registeredUser = boolean
+    def registeredUser(self, registeredUser):
+        self.__registeredUser = registeredUser
 
     @property
     def roomCreator(self):
         return self.__roomCreator
 
     @roomCreator.setter
-    def roomCreator(self, boolean):
-        self.__roomCreator = boolean
+    def roomCreator(self, roomCreator):
+        self.__roomCreator = roomCreator
 
-    def addPrompt(self, newPrompt):
+    @property
+    def personality(self):
+        return self.__personality
+
+    @personality.setter
+    def personality(self, personality):
+        self.__personality = personality
+        self.updateDynamo()
+
+    def addPrompt(self, newPrompt, elapsedTime):
         for promptTitle, prompt in newPrompt.items():
             if prompt:
                 self.__currentPrompts[promptTitle] = {
                     'prompt': prompt,
-                    'timeStamp': timeStamp()
+                    'timeStamp': elapsedTime
                 }
                 print(f'{self.screenName} - {promptTitle} - {prompt}')
 
-    def logPrompt(self, prompt, reaction=None):
+    def logPrompt(self, prompt, elapsedTime, reaction=None):
+        currentTime = int(elapsedTime)
         logPrompt = {
             'promptTitle': list(prompt.keys())[0],
             'prompt': list(prompt.values())[0],
-            'timeStamp': timeStamp(),
+            'timeStamp': currentTime,
             'reaction': reaction,
             'userId': self.__userId
         }
         self.__promptHistory.append(logPrompt)
 
-    def addAndLogPrompt(self, prompt):
-        self.addPrompt(prompt)
-        self.logPrompt(prompt)
+    def addAndLogPrompt(self, prompt, elapsedTime):
+        self.addPrompt(prompt, elapsedTime)
+        self.logPrompt(prompt, elapsedTime)
 
-    def logFeedback(self, type, question, response):
+    def logFeedback(self, type, question, response, options=None):
         if type not in self.__feedbackLog:
             self.__feedbackLog[type] = []
         self.__feedbackLog[type].append({
             'question': question,
+            'options': options,
             'response': response
         })
+
+    def feedbackString(self):
+        feedbackString = ""
+        for feedbackType in self.__feedbackLog:
+            for i, log in enumerate(self.__feedbackLog[feedbackType]):
+                question = log.get('question')
+                options = log.get('options', "Not applicable")
+                response = log.get('response')
+                feedbackString += f"{i}. Question: {question}; Options: {options}; Response: {response}"
+        return feedbackString
+
+    def performerString(self):
+        description = f"userId: {self.userId}. "
+        description += f"They use the name {self.screenName}. "
+        description += f"They can play {self.instrument}. "
+        if self.__personality:
+            description += f"{self.__personality}"
+        return description
 
     def updateDynamo(self):
         self.__table.putItem({
             'sub': self.__userId,
             'screenName': self.__screenName,
-            'instrument': self.__instrument
+            'instrument': self.__instrument,
+            'personality': self.__personality
         })
-
-    def likePrompt(self, prompt, promptTitle, reaction=None):
-        self.logPrompt({promptTitle: prompt}, reaction)
 
     def updateUserData(self, message):
         self.__userId = message.get('userId', self.__userId)
@@ -134,5 +162,16 @@ class Performer:
         self.__currentPrompts = {}
         self.__promptHistory = []
         self.__feedbackLog = {}
+
+    def playerProfile(self):
+        return {'userId': self.__userId,
+                'screenName': self.__screenName,
+                'instrument': self.__instrument,
+                'personality': self.__personality,}
+
+    def updatePlayerProfile(self, playerProfileData):
+        for key, value in playerProfileData.items():
+            if hasattr(self, key) and value is not None:
+                setattr(self, key, value)
 
 

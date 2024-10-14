@@ -1,9 +1,10 @@
 /FineTuning
+/directorPrompts/promptScripts.py
 
 CERT\
 .env
 notes.txt
-directorPrompts/promptScripts.py
+directorPrompts/promptScripts_.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
