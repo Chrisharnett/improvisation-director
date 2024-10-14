@@ -55,13 +55,19 @@ class LLMQueryCreator:
     def personality(self, personality):
         self.__personality = personality
 
-    def systemContext(self):
+    def systemContext(self, room=None):
+        context = "You are the director of this musical improvisation. "
         if self.__personality:
-            return f"You are the director of this musical improvisation. {self.__personality}."
-        return None
+            context += f" {self.__personality}. "
+        if room:
+            context += "The performers in the room are :"
+            for i, performer in enumerate(room.performers):
+                context += f"Performer {i + 1}: {performer.performerString()} "
+            context += "A player can only play one instrument at a time. "
+        return context
 
-    def promptContext(self, room, feedback=None):
-        prompt_context = f'You are the director of musical improvisations. The musicians depend on your prompts to direct their performance. The prompts you create must be 10 words or less. The current gameState includes performer details, past prompt feedback, and user preferences.  Current GameState: {room.gameStateString()}'
+    def promptContext(self, room):
+        prompt_context = f'You are the director of musical improvisations. The musicians depend on your prompts to direct their performance. The prompts you create must be 10 words or less. {room.gameStateString()}'
         return prompt_context
 
     def postPerformancePerformerFeedback(self, currentRoom, feedbackLogs, userId):
@@ -96,78 +102,110 @@ class LLMQueryCreator:
         length =  self.openAIConnector.getResponseFromLLM(prompt)
         return length
 
-    def determinePersonalityFromFeedback(self, feedback):
-        feedbackText = "Based on the performers' feedback, create a personality to describe the improvDirector's approach to this performance. It should create a complete sentence structured like this. " \
-                       "As improvDirector you <<musical style>> and focus on << composition approach >>'\nFeedback:\n"
-        for i, response in enumerate(feedback):
-            question = response.get('question')
-            optionList = question.get('options')
-            options = ""
-            if optionList:
-                for j, option in enumerate(optionList):
-                    options += f"{j+1}. {option}"
-            feedbackText += f"{i + 1}. Question: \'{question.get('question')}\" Options: \"{options}\" Preference: {response.get('response')})\n"
-        newPersonality = self.openAIConnector.getResponseFromLLM(feedbackText)
+    def determineLLMPersonalityFromFeedback(self, feedback):
+        feedbackText = ("This initial feedback indicates prompt preferences for a group of performers. " \
+                        "Create a personality to describe the improvDirector's approach to this performance. " \
+                        "The personality should describe the type of improvDirector that would best work with these performers. " \
+                        "It should create a complete sentence structured like this: 'As improvDirector you <<musical style>> and focus on <<composition approach>>'." \
+                        " Examples: 'As improvDirector you favor electronic textures and focus on adventurous, non-linear compositions.',"
+                        "'As improvDirector, you favor switching instrumentation and focus on who is playing at a given moment. '"
+                        " Feedback:\n")
+
+        if feedback:
+            for i, response in enumerate(feedback):
+                question = response.get('question')
+                optionList = question.get('options')
+                options = ""
+                if optionList:
+                    for j, option in enumerate(optionList):
+                        options += f"{j+1}. {option}"
+                feedbackText += f"{i + 1}. Question: \'{question.get('question')}\" Options: \"{options}\" Preference: {response.get('response')})\n"
+        else :
+            feedbackText += "Performers did not provide feedback, choose a random personality. "
+        newPersonality = self.openAIConnector.getResponseFromLLM(feedbackText, self.systemContext())
         self.__personality = newPersonality
+
+    def getPerformerPersonality(self, performer):
+        # Explore creating specific attributes at a later time for ratings. i.e adventurous, technical skill, etc.
+        prompt = (f"{performer.performerString()} "
+                 f"This is feedback from a player of their preferred prompt choices. Feedback: {performer.feedbackString}. "
+                  f"Create a personality to describe the musical and creative approach preferred by this performer. "
+                  f"The description should be about 10 words long. It is meant to help the improvDirector tailor it's prompts to the user."
+                  f"Do not invent facts."
+                  f"Examples:"
+                  f"'A guitar player who uses pedals to create spacey atmospheres and likes ambient music. "
+                  f"'A harp player that specializes in atonal performance. The enjoy specific musical directions. "
+                  f"'A woodwind player that switches between flute and saxophone. He likes electronic music and abstract prompts.")
+        performerPersonality = self.openAIConnector.getResponseFromLLM(prompt)
+        performer.personality = performerPersonality
+
+    def updatePerformerPersonality(self, performer):
+        prompt = (f"{performer.performerString()}"
+                  f"This performer has just completed a performance."
+                  f"Analyze the performance and the feedback."
+                  f"Notice the prompts the userId liked or rejected during the performance."
+                  f"Note the following pre and post performance feedback. {performer.feedbackString()}"
+                  f"Create an updated personality description for the performer based on this new data.")
+        performerPersonality = self.openAIConnector.getResponseFromLLM(prompt)
+        performer.personality = performerPersonality
 
     #####
     def getFirstPrompt(self, currentRoom,):
         prompt = self.promptContext(currentRoom)
-        prompt += "Your task is to analyze the following gameState" \
-                  " and generate a group musical prompt " \
-                  "that best aligns with the performers' style " \
-                  "and recent feedback preferences."
-        groupPrompt = self.openAIConnector.getGroupPrompt(prompt)
+        prompt += "Your task is to generate a groupPrompt " \
+                  "to initiate this performance. "  \
+                  "Optionally include key and style or meter information. "
+        groupPrompt = self.openAIConnector.getGroupPrompt(prompt, self.systemContext(currentRoom))
         return groupPrompt
 
     #####
     def getPerformerPrompts(self, currentRoom, groupPrompt):
         prompt = self.promptContext(currentRoom)
-        prompt += ("Review the current gameState and create new performerPrompts for each userId listed. The prompts should: Be personalized based on user preferences and performance details; "
+        prompt += ("Review the current gameState and create new performerPrompts for each userId in the current performance. The prompts should: Be personalized based on user preferences and performance details; "
                    "Align with the overall groupPrompt: Create a driving rhythm that gradually increases in intensity;"
-                   "Build on past feedback, musical ideas, and consistency in the improvisation;"
+                   "Build on past feedback, musical ideas, and advancing the improvisation;"
                    "Include specific instructions for performers' instruments and techniques;"
                    "Ensure all prompts are musically coherent with one another.")
         prompt += f'The new groupPrompt is {groupPrompt}'
         if 'endPrompt' in groupPrompt:
             prompt += f'This is the final performerPrompt for the performance.'
-        performerPrompts = self.openAIConnector.getPrompts(prompt, 'performerPrompt')
+        performerPrompts = self.openAIConnector.getPrompts(prompt, 'performerPrompt', self.systemContext(currentRoom))
         return performerPrompts
 
     ####
     def updatePerformerPrompts(self, currentRoom, groupPrompt):
         prompt = self.promptContext(currentRoom) + self.promptScripts['updatePerformerPrompts']
         prompt += f'The new groupPrompt is {groupPrompt}'
-        performerPrompts = self.openAIConnector.getPrompts(prompt, 'performerPrompt')
+        performerPrompts = self.openAIConnector.getPrompts(prompt, 'performerPrompt', self.systemContext(currentRoom))
         return performerPrompts
 
     #####
     def getUpdatedPrompts(self,currentRoom, promptTitle):
         endPrompt = self.promptContext(currentRoom) + \
                     'Based on past performances and the current gameState, Do you think this performance is ready to end. Respond with only yes or no.'
-        endSong = self.openAIConnector.getResponseFromLLM(endPrompt)
+        endSong = self.openAIConnector.getResponseFromLLM(endPrompt, self.systemContext(currentRoom))
         if endSong == 'yes':
-            return endSong(currentRoom)
+            return currentRoom.endSong()
         prompt = self.promptContext(currentRoom)
         if promptTitle =='groupPrompt':
             prompt += self.promptScripts['updateGroupPrompt']
-            return self.openAIConnector.getGroupPrompt(prompt)
+            return self.openAIConnector.getGroupPrompt(prompt, self.systemContext(currentRoom))
         if promptTitle == 'performerPrompt':
             prompt += self.promptScripts['getPerformerPrompts']
             prompt += f"The current groupPrompt is {currentRoom.performers[0].currentPrompts['groupPrompt'] or 'In the gameState'}"
-            return self.openAIConnector.getPrompts(prompt, promptTitle)
+            return self.openAIConnector.getPrompts(prompt, promptTitle, self.systemContext(currentRoom))
 
     #####
     def rejectGroupPrompt(self, currentRoom):
         prompt = self.promptContext(currentRoom) + self.promptScripts['rejectGroupPrompt']
-        return self.openAIConnector.getGroupPrompt(prompt)
+        return self.openAIConnector.getGroupPrompt(prompt, self.systemContext(currentRoom))
 
     #####
     def rejectPerformerPrompt(self, currentRoom, currentClient, groupPrompt):
         prompt = self.promptContext(currentRoom) + self.promptScripts['rejectPerformerPrompt']
         prompt += f"Please create a new performerPrompt for the user with userId {currentClient.userId}." \
                   f"It should support the following groupPrompt {groupPrompt}"
-        return self.openAIConnector.getSinglePerformerPrompt(prompt)
+        return self.openAIConnector.getSinglePerformerPrompt(prompt, self.systemContext(currentRoom))
 
     #####
     def moveOnFromPerformerPrompt(self, currentRoom, currentClient, groupPrompt):
@@ -176,13 +214,13 @@ class LLMQueryCreator:
         prompt += f"Please create a new performerPrompt for the user with userId {currentClient.userId}." \
                   f"It should support the following groupPrompt {groupPrompt}." \
                   f"Provide a new, different performerPrompt for this user."
-        return self.openAIConnector.getSinglePerformerPrompt(prompt)
+        return self.openAIConnector.getSinglePerformerPrompt(prompt, self.systemContext(currentRoom))
 
     #####
     def getEndSongPrompt(self, currentRoom):
         currentRoom.cancelAllTasks()
         prompt = self.promptContext(currentRoom) + self.promptScripts['finalGroupPrompt']
-        endingGroupPrompt = self.openAIConnector.getGroupPrompt(prompt)
+        endingGroupPrompt = self.openAIConnector.getGroupPrompt(prompt, self.systemContext(currentRoom))
         return {'endPrompt': endingGroupPrompt['groupPrompt']}
 
     def generateRoomName(self):
@@ -192,10 +230,10 @@ class LLMQueryCreator:
         prompt += f'The word cannot be in {currentRoomNamesStr}. '
         return self.openAIConnector.getResponseFromLLM(prompt)
 
-    def closingSummary(self, gameStateString):
+    def closingSummary(self, currentRoom):
         prompt = self.promptScripts['closingSummary']
-        prompt += f"Final gameState: {gameStateString}"
-        return self.openAIConnector.getResponseFromLLM(prompt)
+        prompt += self.promptContext(currentRoom)
+        return self.openAIConnector.getResponseFromLLM(prompt, self.systemContext())
 
     def getWelcomeMessage(self):
         return self.openAIConnector.getResponseFromLLM(self.promptScripts['wellHelloThere'])
@@ -228,10 +266,11 @@ class LLMQueryCreator:
         return self.openAIConnector.getResponseFromLLM(prompt)
 
     def announceStart(self, room):
-        prompt = "Announce the beginning of the improvisation" \
-                 "described below. Do not include any performance directions"
+        prompt = "You will start the improvisation and provide the initial prompts soon. " \
+                 "Make a brief welcome announcement to get everyone's attention. " \
+                 "Make them aware we are about to start."
         prompt += self.promptContext(room)
-        return self.openAIConnector.getResponseFromLLM(prompt, self.systemContext())
+        return self.openAIConnector.getResponseFromLLM(prompt, self.systemContext(room))
 
     def aboutMe(self):
         prompt = self.promptScripts['aboutMe']

@@ -31,6 +31,8 @@ class OpenAIConnector:
     def getSinglePerformerPrompt(self, prompt, systemContext=None, max_retries=3, backoff_factor=2):
         attempt = 0
         systemMessage = self.getSystemMessage(systemContext)
+        systemMessage += (" When generating a response, ensure it matches the following structure exactly: "
+                          "'performerPrompt': 'Prompt for the current performer'")
         while attempt < max_retries:
             try:
                 # Make the LLM API call
@@ -99,6 +101,8 @@ class OpenAIConnector:
     def getGroupPrompt(self, prompt, systemContext=None, max_retries=3, backoff_factor=2):
         attempt = 0
         systemMessage = self.getSystemMessage(systemContext)
+        systemMessage += (" When generating a response, ensure it matches the following structure exactly: "
+                          "'groupPrompts': 'Prompt for all performers'")
         while attempt < max_retries:
             try:
                 # Make the LLM API call
@@ -142,7 +146,7 @@ class OpenAIConnector:
 
                 # Check if 'prompts' exists in the response
                 if "groupPrompt" not in promptsData:
-                    raise KeyError("'prompts' key not found in LLM response.")
+                    raise KeyError("GroupPrompt: 'prompts' key not found in LLM response.")
 
                 return promptsData
 
@@ -169,6 +173,8 @@ class OpenAIConnector:
     def getPrompts(self, prompt, title, systemContext=None, max_retries=3, backoff_factor=2):
         attempt = 0
         systemMessage = self.getSystemMessage(systemContext)
+        systemMessage += (" When generating a response, ensure it matches the following structure exactly: "
+                          "'prompts': {'userId for user 1': 'Prompt for user 1', 'userId for user 2': 'prompt for user 2'}")
         while attempt < max_retries:
             try:
                 # Make the LLM API call
@@ -180,7 +186,7 @@ class OpenAIConnector:
                     functions=[
                         {
                             "name": "get_prompts",
-                            "description": "Generate a set of prompts for each userId in the gameState.",
+                            "description": "Generate a set of prompts for each userId in the performance.",
                             "parameters": {
                                 "type": "object",
                                 "properties": {
@@ -213,7 +219,7 @@ class OpenAIConnector:
 
                 # Check if 'prompts' exists in the response
                 if "prompts" not in promptsData:
-                    raise KeyError("'prompts' key not found in LLM response.")
+                    raise KeyError("PerformerPrompts: 'prompts' key not found in LLM response.")
 
                 # Process the valid data
                 result = {}
@@ -246,10 +252,18 @@ class OpenAIConnector:
             time.sleep(sleep_time)
 
     def userOptionFeedback(self, prompt):
+        systemMessage = (f"{self.getSystemMessage()}"
+                        "The performance has not started yet."
+                         "You are collecting feedback from users to fine tune your style of musical leadership."
+                         "When generating a response, ensure it matches the following structure exactly: "
+                        "{'question': 'Which prompt do you prefer?', 'options': ['prompt1', 'prompt2']} "
+                         "Only respond in this JSON format without additional text.")
         try:
             chat_completion = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": systemMessage},
+                    {"role": "user", "content": prompt}],
                 functions=[
                     {
                         "name": "get_user_feedback",

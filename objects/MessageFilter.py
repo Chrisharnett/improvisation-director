@@ -72,25 +72,38 @@ class MessageFilter:
     async def handleGetCurrentPlayer(self, message):
         currentPlayer = message.get('currentPlayer')
         userId = currentPlayer.get('userId')
-        currentPlayer = self.handleGetUserData(userId)
-        player = {'userId': userId, 'screenName': currentPlayer.get('screenName', None), 'instrument': currentPlayer.get('instrument', None)}
+        if not self.currentClient.userId:
+            self.currentClient.userId = userId
+        playerData = self.handleGetUserData(userId)
+        updatedData = {key: playerData[key] for key in ['screenName', 'instrument', 'personality'] if
+                       key in playerData}
+        self.currentClient.updatePlayerProfile(updatedData)
         return {
             'action': 'playerProfileData',
-            'currentPlayer': player,
-            'clients': [self.__currentClient],}
+            'currentPlayer': self.currentClient.playerProfile(),
+            'clients': [self.currentClient]}
 
     async def handleUpdateProfile(self, message):
         currentPlayer = message.get('currentPlayer')
-        userId = currentPlayer.get('userId')
-        screenName = currentPlayer.get('screenName')
-        instrument = currentPlayer.get('instrument')
-        if userId:
-            self.currentClient.userId = userId
-        if screenName:
-            self.currentClient.screenName = screenName
-        if instrument:
-            self.currentClient.instrument = instrument
+        updatedData = {key: currentPlayer[key] for key in ['screenName', 'instrument', 'personality'] if key in currentPlayer}
+        self.currentClient.updatePlayerProfile(updatedData)
+        # userId = currentPlayer.get('userId')
+        # screenName = currentPlayer.get('screenName')
+        # instrument = currentPlayer.get('instrument')
+        # personality = currentPlayer.get('personality')
+        # if userId:
+        #     self.currentClient.userId = userId
+        # if screenName:
+        #     self.currentClient.screenName = screenName
+        # if instrument:
+        #     self.currentClient.instrument = instrument
+        # if personality:
+        #     self.currentClient.personality = personality
         self.handleUpdateDynamo()
+        return {
+            'action': 'playerProfileData',
+            'currentPlayer': self.currentClient.playerProfile(),
+            'clients': [self.__currentClient],}
 
     async def handleChat(self, message):
         chatResponse = self.__query.chatTest(message.get('message'))
@@ -124,7 +137,8 @@ class MessageFilter:
             response = table.putItem({
                 'sub': self.currentClient.userId,
                 'screenName': self.currentClient.screenName,
-                'instrument': self.currentClient.instrument
+                'instrument': self.currentClient.instrument,
+                'personality': self.currentClient.personality,
             })
             return response
         except Exception as e:
@@ -244,7 +258,11 @@ class MessageFilter:
         promptTitle = message.get('promptTitle')
         reaction = message.get('reaction')
         await self.__currentRoom.promptReaction(self.__currentClient, prompt, promptTitle, reaction)
-        return self.__currentRoom.prepareGameStateResponse('newGameState')
+        if 'endSong' != self.__currentRoom.gameStatus:
+            return self.__currentRoom.prepareGameStateResponse('newGameState')
+        else:
+            return {'roomName': message.get('roomName'),
+                    'action': 'noAction'}
 
     async def handleEndSong(self, message):
         await self.__currentRoom.endSong()
@@ -311,7 +329,7 @@ class MessageFilter:
         return self.__currentRoom.prepareGameStateResponse('newGameState')
 
     async def handleAnnounceStartPerformance(self, message):
-        self.__currentRoom.determinePersonality()
+        self.__currentRoom.determineLLMPersonality()
         announcement = self.__query.announceStart(self.__currentRoom)
         return  {'action': 'announcement',
                 'roomName': self.__currentRoomName,

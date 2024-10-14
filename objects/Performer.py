@@ -92,6 +92,7 @@ class Performer:
     @personality.setter
     def personality(self, personality):
         self.__personality = personality
+        self.updateDynamo()
 
     def addPrompt(self, newPrompt, elapsedTime):
         for promptTitle, prompt in newPrompt.items():
@@ -117,23 +118,40 @@ class Performer:
         self.addPrompt(prompt, elapsedTime)
         self.logPrompt(prompt, elapsedTime)
 
-    def logFeedback(self, type, question, response):
+    def logFeedback(self, type, question, response, options=None):
         if type not in self.__feedbackLog:
             self.__feedbackLog[type] = []
         self.__feedbackLog[type].append({
             'question': question,
+            'options': options,
             'response': response
         })
+
+    def feedbackString(self):
+        feedbackString = ""
+        for feedbackType in self.__feedbackLog:
+            for i, log in enumerate(self.__feedbackLog[feedbackType]):
+                question = log.get('question')
+                options = log.get('options', "Not applicable")
+                response = log.get('response')
+                feedbackString += f"{i}. Question: {question}; Options: {options}; Response: {response}"
+        return feedbackString
+
+    def performerString(self):
+        description = f"userId: {self.userId}. "
+        description += f"They use the name {self.screenName}. "
+        description += f"They can play {self.instrument}. "
+        if self.__personality:
+            description += f"{self.__personality}"
+        return description
 
     def updateDynamo(self):
         self.__table.putItem({
             'sub': self.__userId,
             'screenName': self.__screenName,
-            'instrument': self.__instrument
+            'instrument': self.__instrument,
+            'personality': self.__personality
         })
-
-    # def likePrompt(self, prompt, promptTitle, reaction=None):
-    #     self.logPrompt({promptTitle: prompt}, reaction)
 
     def updateUserData(self, message):
         self.__userId = message.get('userId', self.__userId)
@@ -144,5 +162,16 @@ class Performer:
         self.__currentPrompts = {}
         self.__promptHistory = []
         self.__feedbackLog = {}
+
+    def playerProfile(self):
+        return {'userId': self.__userId,
+                'screenName': self.__screenName,
+                'instrument': self.__instrument,
+                'personality': self.__personality,}
+
+    def updatePlayerProfile(self, playerProfileData):
+        for key, value in playerProfileData.items():
+            if hasattr(self, key) and value is not None:
+                setattr(self, key, value)
 
 
