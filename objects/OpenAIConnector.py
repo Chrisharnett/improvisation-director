@@ -61,8 +61,6 @@ class OpenAIConnector:
                 )
 
                 # Parse the response from the LLM
-                # response = chatCompletion['choices'][0]['message']['function_call']['arguments']
-                # Access the first choice from the response using dot notation
                 choice = chatCompletion.choices[0]
 
                 # Access the function call and its arguments
@@ -132,9 +130,7 @@ class OpenAIConnector:
                     function_call={"name": "get_group_prompt"}
                 )
 
-                # Parse the response from the LLM
-                # response = chatCompletion['choices'][0]['message']['function_call']['arguments']
-                # Access the first choice from the response using dot notation
+
                 choice = chatCompletion.choices[0]
 
                 # Access the function call and its arguments

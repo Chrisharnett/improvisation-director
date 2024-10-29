@@ -377,6 +377,7 @@ class Room:
         self.__gameLog['roomName'] = f"{self.__roomName}-{self.__songCount}"
         self.__gameLog['performers'] = performers
         self.__gameLog['promptLog'] = self.getSortedPromptList()
+        self.__gameLog['llmPersonality'] = self.__LLMQueryCreator.personality
         self.__gameLog['summary'] = self.__summary
 
     async def startNewSong(self):
