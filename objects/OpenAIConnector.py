@@ -299,7 +299,6 @@ class OpenAIConnector:
             print(f"Error in LLM response: {e}")
             raise e
 
-
     def getSystemMessage(self, systemContext=None):
         defaultMessage = "You are managing the improvisation for the performance."
         return systemContext if systemContext else defaultMessage

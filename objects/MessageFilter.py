@@ -2,8 +2,26 @@ from objects.Room import Room
 from util.Dynamo.logTableClient import LogTableClient
 from util.Dynamo.connections import getDynamoDbConnection
 from util.Dynamo.userTableClient import UserTableClient
+from util.JWTVerify import verify_jwt
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
+
 
 class MessageFilter:
+    AUTHENTICATED_ACTIONS = {
+        'updateProfile',
+        'registration',
+        'getCurrentPlayer',
+        'getStarted',
+        'performerLobbyFeedbackResponse',
+        'postPerformancePerformerFeedbackResponse',
+        'playAgain',
+        'announceStartPerformance',
+        'startPerformance',
+        'performanceComplete',
+        'endSong',
+        'reactToPrompt'
+    }
     def __init__(self, currentClient, currentRooms, queryCreator, broadcastHandler=None):
         self.__query = queryCreator
         self.__currentClient = currentClient
@@ -54,12 +72,21 @@ class MessageFilter:
         self.__currentRoomName = message.get('roomName') or 'lobby'
         self.updateRoom(currentRoom)
 
+        is_authenticated, auth_response = await self.verifyAuthentication(message)
+        if not is_authenticated:
+            return auth_response
+
         action = message.get('action')
         if action:
-            methodName = f"handle{action[0].upper()}{action[1:]}"  # Convert action to camelCase method name
+            methodName = f"handle{action[0].upper()}{action[1:]}"
             method = getattr(self, methodName, self.handleDefault)
             return await method(message)
         return
+
+    async def handleObserveRoom(self, message):
+        roomName = message.get('roomName')
+        self.__currentRoom.addAudienceToRoom(self.__currentClient)
+        return self.__currentRoom.prepareGameStateResponse(action='newObserver')
 
     async def handleAboutMe(self, message):
         aboutMe = self.__query.aboutMe()
@@ -87,18 +114,6 @@ class MessageFilter:
         currentPlayer = message.get('currentPlayer')
         updatedData = {key: currentPlayer[key] for key in ['screenName', 'instrument', 'personality'] if key in currentPlayer}
         self.currentClient.updatePlayerProfile(updatedData)
-        # userId = currentPlayer.get('userId')
-        # screenName = currentPlayer.get('screenName')
-        # instrument = currentPlayer.get('instrument')
-        # personality = currentPlayer.get('personality')
-        # if userId:
-        #     self.currentClient.userId = userId
-        # if screenName:
-        #     self.currentClient.screenName = screenName
-        # if instrument:
-        #     self.currentClient.instrument = instrument
-        # if personality:
-        #     self.currentClient.personality = personality
         self.handleUpdateDynamo()
         return {
             'action': 'playerProfileData',
@@ -114,9 +129,10 @@ class MessageFilter:
         }
 
     async def handleGetStarted(self, message):
-        # print(f"Sent message to user {websocketId} in room {self.__currentRoomName.roomName}")
+        # print(f"user {websocketId} in room {self.__currentRoomName.roomName}")
         welcomeMessage = self.__currentRoom.sayHello()
         return {'action': 'welcome',
+                'gameStatus': 'welcome',
                 'roomName': self.__currentRoomName,
                 'message': welcomeMessage,
                 'clients': [self.__currentClient]}
@@ -212,7 +228,7 @@ class MessageFilter:
                     'userId': [self.__currentClient.userId],
                     'clients': [self.__currentClient],
                     'message': 'Enter the room you would like to join.',
-                    'responseRequired': True,
+                    'responseRequired': "joinRoom",
                     'responseAction': 'joinRoom'
                 }
             self.__currentRoom = self.__currentRooms.get(roomNameToJoin.lower())
@@ -243,14 +259,16 @@ class MessageFilter:
 
     async def handlePerformerLobbyFeedbackResponse(self, message):
         feedbackQuestion = message.get('feedbackQuestion').get('question')
+        feedbackOptions = message.get('feedbackQuestion').get('options')
         feedbackResponse = message.get('response')
-        self.__currentClient.logFeedback('performerLobbyFeedbackResponse', feedbackQuestion, feedbackResponse)
+        self.__currentClient.logFeedback('performerLobbyFeedbackResponse', feedbackQuestion, feedbackResponse, feedbackOptions)
         response = {
             'feedbackQuestion': self.__currentRoom.getLobbyFeedback([self.__currentClient]),
-            'roomName': self.__currentRoomName,
-            'gameStatus': self.__currentRoom.gameStatus,
-            'gameState': self.__currentRoom.prepareGameStatePerformers()
+            # 'roomName': self.__currentRoomName,
+            # 'gameStatus': self.__currentRoom.gameStatus,
+            # 'gameState': self.__currentRoom.prepareGameStateResponse()
         }
+        response.update(self.__currentRoom.prepareGameStateResponse())
         return response
 
     async def handleReactToPrompt(self, message):
@@ -335,3 +353,59 @@ class MessageFilter:
                 'roomName': self.__currentRoomName,
                 'message': {'announcement': announcement},
                  'disableTimer': True}
+
+    async def verifyAuthentication(self, message):
+        action = message.get('action')
+        token = message.get('token')
+
+        if action in self.AUTHENTICATED_ACTIONS:
+            if not token:
+                return False, {
+                    'action': 'error',
+                    'errorMessage': 'Authentication required for this action.',
+                    'responseRequired': "",
+                    'clients': [self.__currentClient],
+                }
+
+            try:
+                decoded_token = verify_jwt(token)
+
+            except jwt.ExpiredSignatureError:
+            # Handle specific case of expired token
+                return False, {
+                    'action': 'error',
+                    'errorMessage': 'Token has expired. Access denied.',
+                    'responseRequired': "",
+                    'clients': [self.__currentClient],
+                }
+
+            except jwt.InvalidTokenError as e:
+                # Handle specific case of invalid token
+                print("Token verification error:", str(e))
+                return False, {
+                    'action': 'error',
+                    'errorMessage': 'Invalid token. Access denied.',
+                    'responseRequired': "",
+                    'clients': [self.__currentClient],
+                }
+
+            except ValueError as e:
+                # Handle general token verification errors, like missing claims
+                return False, {
+                    'action': 'error',
+                    'errorMessage': str(e),
+                    'responseRequired': "",
+                    'clients': [self.__currentClient],
+                }
+
+            except Exception as e:
+                # Fallback for unexpected errors, with more specific information
+                return False, {
+                    'action': 'error',
+                    'errorMessage': f'Unexpected error occurred: {str(e)}. Access denied.',
+                    'responseRequired': "",
+                    'clients': [self.__currentClient],
+                }
+
+        return True, None
+

@@ -9,6 +9,8 @@ from objects.LLMQueryCreator import LLMQueryCreator
 import http.server
 import socketserver
 import threading
+from util.JWTVerify import verify_jwt
+import urllib.parse
 
 class WebSocketServer:
     def __init__(self):
@@ -19,12 +21,10 @@ class WebSocketServer:
 
     async def handleConnection(self, websocket, path):
         currentClient = None
-        websocketId = str(websocket.id)  # Use websocket.id (UUID) as the identifier
+        websocketId = str(websocket.id)
 
         try:
-            # Initialize the client immediately after the connection
             currentClient = Performer(websocket)
-
             if websocketId not in self.connectedClients:
                 # Send a welcome message immediately upon connection
                 queryCreator = LLMQueryCreator()
@@ -42,27 +42,34 @@ class WebSocketServer:
             async for message in self.pingWebsocket(websocket):
                 if message:
                     incomingMessage = json.loads(message)
+                    print(f"Incoming Message: {incomingMessage.get('action')}")
                     currentPlayer = incomingMessage.get('currentPlayer')
-                    screenName = currentPlayer.get('screenName') if currentPlayer else websocketId
-                    print(f"Received message from {screenName}. MESSAGE: {incomingMessage}")
                     roomName = incomingMessage.get("roomName", "lobby")
                     currentRoom = self.currentRooms.get(roomName)
-                    userId = incomingMessage.get('userId')
-                    if userId:
-                        currentClient.userId = userId
-                    if currentRoom:
+                    if currentPlayer == 'audience':
+                        print(f"Audience message received")
                         response = await filter.handleMessage(incomingMessage, currentRoom)
-                        newRoomName = response.get('roomName')
-                        if newRoomName:
-                            currentRoom = self.currentRooms.get(newRoomName)
                         await currentRoom.handleResponse(response)
                     else:
-                        await currentRoom.handleResponse({
-                            'action': 'error',
-                            'message': 'Room not found.',
-                            'responseRequired': True,
-                            'responseAction': 'joinRoom'
-                        })
+                        screenName = currentPlayer.get('screenName') if currentPlayer else websocketId
+                        print(f"{screenName}. MESSAGE: {incomingMessage}")
+                        userId = currentPlayer.get('userId')
+                        if userId:
+                            currentClient.userId = userId
+                        if currentRoom:
+                            response = await filter.handleMessage(incomingMessage, currentRoom)
+                            if response.get('gameState'):
+                                newRoomName = response.get('gameState').get('roomName')
+                                if newRoomName:
+                                    currentRoom = self.currentRooms.get(newRoomName)
+                            await currentRoom.handleResponse(response)
+                        else:
+                            await currentRoom.handleResponse({
+                                'action': 'error',
+                                'message': 'Room not found.',
+                                'responseRequired': True,
+                                'responseAction': 'joinRoom'
+                            })
 
         except websockets.ConnectionClosedOK:
             print(f"Client {websocketId if currentClient else 'unknown'} disconnected normally (going away).")

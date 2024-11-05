@@ -33,7 +33,12 @@ def getAISecret():
     return oaKey, oaProject, model
 
 def logBucketSecret():
-    secret_name = "improv_director/logBucket"
-    secret = retrieveSecret(secret_name)
+    secretName = "improv_director/logBucket"
+    secret = retrieveSecret(secretName)
     return secret.get("LOG_BUCKET")
+
+def cognitoSecret():
+    secretName = "improv_director/cognitoSecrets"
+    secret = retrieveSecret(secretName)
+    return secret.get('userPoolId'), secret.get('clientId')
 

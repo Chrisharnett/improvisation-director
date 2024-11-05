@@ -12,6 +12,7 @@ class Room:
         else:
             self.__roomName = roomName
         self.__performers = []
+        self.__audience = []
         self.__scheduledTasks = {}
         self.__broadcastHandler = broadcastHandler
         self.__gameLog = {}
@@ -54,6 +55,10 @@ class Room:
         return self.__performers
 
     @property
+    def audience(self):
+        return self.__audience
+
+    @property
     def scheduledTasks(self):
         return self.__scheduledTasks
 
@@ -81,7 +86,6 @@ class Room:
     def startTime(self):
         return self.__startTime
 
-
     def setStartTime(self):
         if not self.__startTime:
             self.__startTime = timeStamp()
@@ -105,6 +109,9 @@ class Room:
                 groupPrompt = self.performers[0].currentPrompts['groupPrompt']
                 self.LLMQueryCreator.getPerformerPrompts(self, groupPrompt)
 
+    def addAudienceToRoom(self, client):
+        self.__audience.append(client)
+
     def sayHello(self):
         return self.__LLMQueryCreator.getWelcomeMessage()
 
@@ -118,18 +125,23 @@ class Room:
         for task in self.__scheduledTasks.values():
             task.cancel()
 
-    async def broadcastMessage(self, message, newPrompts=None):
-        if self.__performers:
+    async def broadcastMessage(self, message):
+       if self.__performers:
             await asyncio.gather(*[performer.websocket.send(json.dumps(message)) for performer in self.__performers])
-            print(f"Broadcasted message to room {self.__roomName}")
-        return
+       if self.__audience:
+            await asyncio.gather(*[audienceMember.websocket.send(json.dumps(message)) for audienceMember in self.__audience])
+       print(f"Broadcast {message.get('action')} to room {self.__roomName}")
+       return
 
     async def sendMessageToUser(self, message, client):
         response = message.copy()
         response.pop('clients', None)
         if client in self.__performers:
             await client.websocket.send(json.dumps(response))
-            print(f"Sent message to user {client.userId or 'Unnamed Client'} in room {self.__roomName}")
+            detail = response.get('message')
+            if not detail:
+                detail = response.get('action')
+            print(f"Send {detail}  to user {client.screenName or 'Unnamed Client'} in room {self.__roomName}")
 
     async def handleResponse(self, message):
         clientRecipients = message.get('clients')
@@ -187,12 +199,13 @@ class Room:
         return string
 
     def prepareGameStateResponse(self, action=None):
-        return {
-            'gameState': self.prepareGameStatePerformers(),
-            'gameStatus': self.__gameStatus,
-            'roomName': self.__roomName,
+        gameState = {'roomName': self.roomName, 'gameStatus': self.gameStatus}
+        gameState.update(self.prepareGameStatePerformers())
+        response = {
+            'gameState': gameState,
             'action': action
         }
+        return response
 
     def determineLLMPersonality(self):
         feedback = []
@@ -217,7 +230,12 @@ class Room:
 
         self.gameStatus = "improvise"
         await self.schedulePromptUpdate('groupPrompt')
-        await self.schedulePromptUpdate('performerPrompt')
+        # await self.schedulePromptUpdate('performerPrompt')
+
+    async def getGroupPrompt(self, promptTitle='groupPrompt'):
+        newPrompt = self.LLMQueryCreator.getUpdatedPrompts(self, promptTitle)
+        await self.schedulePromptUpdate(promptTitle)
+        return newPrompt
 
     async def getPerformerPrompts(self, groupPrompt):
         performerPrompts = (self.LLMQueryCreator.getPerformerPrompts(self, groupPrompt))
@@ -231,19 +249,11 @@ class Room:
                             del performer.currentPrompts['groupPrompt']
         await self.schedulePromptUpdate('performerPrompt')
 
-    #####
     def assignNewPrompts(self, newPrompts):
         for userId, prompt in newPrompts.items():
             for performer in self.__performers:
                 if userId == performer.userId:
                     performer.addAndLogPrompt(prompt, self.getCurrentPerformanceTime())
-
-    def updatePrompts(self, userId, newPrompt):
-        for performer in self.__performers:
-            if userId == performer.userId:
-                for title, prompt in newPrompt.items():
-                    if prompt:
-                        performer.addAndLogPrompt({title: prompt}, self.getCurrentPerformanceTime())
 
     async def promptReaction(self, currentClient, currentPrompt, currentPromptTitle, reaction):
         currentClient.logPrompt({currentPromptTitle: currentPrompt}, self.getCurrentPerformanceTime(), reaction)
@@ -261,7 +271,7 @@ class Room:
             case 'groupPrompt':
                 newGroupPrompt = self.LLMQueryCreator.getUpdatedPrompts(self, promptTitle)
                 await self.getPerformerPrompts(newGroupPrompt)
-                await self.schedulePromptUpdate(promptTitle)
+
             case 'performerPrompt':
                 if len(self.performers) > 0:
                     groupPrompt = self.performers[0].currentPrompts.get('groupPrompt')
@@ -272,9 +282,9 @@ class Room:
     async def handleRejectedPrompts(self, currentClient, prompt, promptTitle):
         match promptTitle:
             case 'groupPrompt':
-                newGroupPrompt = self.LLMQueryCreator.rejectGroupPrompt(self)
+                newGroupPrompt = self.getGroupPrompt(promptTitle)
                 await self.getPerformerPrompts(newGroupPrompt)
-                await self.schedulePromptUpdate(promptTitle)
+                # await self.schedulePromptUpdate(promptTitle)
             case 'performerPrompt':
                 if len(self.performers) > 0:
                     groupPrompt = self.performers[0].currentPrompts.get('groupPrompt')
@@ -285,10 +295,10 @@ class Room:
     async def schedulePromptUpdate(self, promptTitle):
         try:
             interval = int(self.LLMQueryCreator.getIntervalLength(self.gameStateString(), promptTitle))
-            if interval > 120:
-                interval = random.randint(45, 120)
+            # if interval > 120:
+            #     interval = random.randint(45, 300)
         except ValueError:
-            interval = 30
+            interval = random.randint(45, 300)
         if promptTitle in self.__scheduledTasks:
             existingTask = self.__scheduledTasks[promptTitle]
             if not existingTask.done():
@@ -307,12 +317,13 @@ class Room:
         await asyncio.sleep(interval)
         if 'endSong' != self.gameStatus:
             newPrompts = self.LLMQueryCreator.getUpdatedPrompts(self, promptTitle)
+            # newPrompts = self.getGroupPrompt(promptTitle)
             if 'groupPrompt' in newPrompts:
                 await self.getPerformerPrompts(newPrompts)
             else:
                 self.assignNewPrompts(newPrompts)
             response = self.prepareGameStateResponse('newGameState')
-            await self.broadcastMessage(response, newPrompts)
+            await self.handleResponse(response)
             if len(self.__performers) > 0:
                 await self.schedulePromptUpdate(promptTitle)
             else:
@@ -324,35 +335,32 @@ class Room:
 
     def getLobbyFeedback(self, currentPerformers):
         feedbackType = 'performerLobby'
-        questions = []
+        questions = {}
         for performer in currentPerformers:
-            questions.append({
-                'userId': performer.userId,
-                'question': self.LLMQueryCreator.gettingToKnowYou()
-            })
+            questions[performer.userId] = self.LLMQueryCreator.gettingToKnowYou()
         return {'feedbackType': feedbackType,
                  'questions': questions}
 
     def getPostPerformancePerformerFeedback(self, currentPerformers):
         self.__gameStatus = 'debrief'
         feedbackType = 'postPerformancePerformerFeedback'
-        questions = []
+        questions = {}
         for performer in currentPerformers:
-            questions.append({
-                'userId': performer.userId,
-                'question': self.LLMQueryCreator.postPerformancePerformerFeedback(
+            questions[performer.userId] = self.LLMQueryCreator.postPerformancePerformerFeedback(
                     self,
                     performer.feedbackLog.get('postPerformancePerformerFeedbackResponse') or [],
                     performer.userId
                 )
-            })
-        return self.completeFeedbackResponse(questions, feedbackType, 'postPerformancePerformerFeedbackResponse')
+        response =  self.completeFeedbackResponse(questions, feedbackType, currentPerformers, 'postPerformancePerformerFeedbackResponse')
+        response['action'] = 'debrief'
+        return response
 
-    def completeFeedbackResponse(self, questions, feedbackType, responseRequired=None):
+    def completeFeedbackResponse(self, questions, feedbackType, currentPerformers, responseRequired=None):
         return {'roomName': self.__roomName,
                 'feedbackQuestion': {'feedbackType': feedbackType,
                                      'questions': questions},
-                'responseRequired': responseRequired
+                'responseRequired': responseRequired,
+                'clients': currentPerformers
                 }
 
     def getClosingTimeSummary(self):
