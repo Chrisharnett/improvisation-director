@@ -14,6 +14,7 @@ class MessageFilter:
         'getCurrentPlayer',
         'getStarted',
         'performerLobbyFeedbackResponse',
+        'centralThemeResponse',
         'postPerformancePerformerFeedbackResponse',
         'playAgain',
         'announceStartPerformance',
@@ -22,6 +23,7 @@ class MessageFilter:
         'endSong',
         'reactToPrompt'
     }
+
     def __init__(self, currentClient, currentRooms, queryCreator, broadcastHandler=None):
         self.__query = queryCreator
         self.__currentClient = currentClient
@@ -253,6 +255,28 @@ class MessageFilter:
         return response
 
     async def handleStartPerformance(self, message=None):
+        self.__currentRoom.updatePerformerPersonalities()
+        if not self.__currentRoom.themeApproved:
+            self.__currentRoom.gameStatus = 'Theme Selection'
+            centralTheme = self.__currentRoom.getCentralTheme()
+            response = self.__currentRoom.prepareGameStateResponse('newCentralTheme')
+            return response
+        else:
+            return self.initializePerformance()
+
+    async def handleCentralThemeResponse(self, message):
+        playerReaction = message.get('playerReaction')
+        self.__currentRoom.updatePerformerPersonality(playerReaction, self.currentClient)
+        if len(self.currentRoom.performers) == len(self.currentRoom.themeReactions):
+            newTheme = self.currentRoom.refineTheme()
+            if self.currentRoom.themeConsensus:
+                return self.initializePerformance()
+            return newTheme
+        progress = [len(self.currentRoom.themeReactions), len(self.currentRoom.performers)]
+        return {'action': 'Waiting for theme response.',
+                'progress': progress}
+
+    async def initializePerformance(self):
         await self.__currentRoom.initializeGameState()
         response = self.__currentRoom.prepareGameStateResponse('newGameState')
         return response
@@ -264,9 +288,6 @@ class MessageFilter:
         self.__currentClient.logFeedback('performerLobbyFeedbackResponse', feedbackQuestion, feedbackResponse, feedbackOptions)
         response = {
             'feedbackQuestion': self.__currentRoom.getLobbyFeedback([self.__currentClient]),
-            # 'roomName': self.__currentRoomName,
-            # 'gameStatus': self.__currentRoom.gameStatus,
-            # 'gameState': self.__currentRoom.prepareGameStateResponse()
         }
         response.update(self.__currentRoom.prepareGameStateResponse())
         return response
@@ -276,11 +297,8 @@ class MessageFilter:
         promptTitle = message.get('promptTitle')
         reaction = message.get('reaction')
         await self.__currentRoom.promptReaction(self.__currentClient, prompt, promptTitle, reaction)
-        if 'endSong' != self.__currentRoom.gameStatus:
-            return self.__currentRoom.prepareGameStateResponse('newGameState')
-        else:
-            return {'roomName': message.get('roomName'),
-                    'action': 'noAction'}
+        response=self.__currentRoom.prepareGameStateResponse('newGameState')
+        return response
 
     async def handleEndSong(self, message):
         await self.__currentRoom.endSong()

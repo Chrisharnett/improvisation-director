@@ -142,7 +142,7 @@ class Performer:
         description += f"They use the name {self.screenName}. "
         description += f"They can play {self.instrument}. "
         if self.__personality:
-            description += f"{self.__personality}"
+            description += f"There personality is: {self.__personality}. "
         return description
 
     def updateDynamo(self):

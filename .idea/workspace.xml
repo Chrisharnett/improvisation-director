@@ -5,19 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6becd639-e16e-4a97-8e3a-959372b39e7b" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/util/JWTVerify.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/IDWebsocket.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/IDWebsocket.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/aws.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/aws.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/LLMQueryCreator.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/LLMQueryCreator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/MessageFilter.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/MessageFilter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/OpenAIConnector.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/OpenAIConnector.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/Performer.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Performer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/Room.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Room.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/WebSocketServer.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/WebSocketServer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/util/awsSecretRetrieval.py" beforeDir="false" afterPath="$PROJECT_DIR$/util/awsSecretRetrieval.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -29,6 +22,9 @@
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectId" id="2o7wbbgALb2BNzGJeVZpiSuMncI" />
   <component name="ProjectViewState">
@@ -98,15 +94,51 @@
       <updated>1730233994457</updated>
       <workItem from="1730233998201" duration="645000" />
       <workItem from="1730246611272" duration="54445000" />
-      <workItem from="1730833578864" duration="3575000" />
+      <workItem from="1730833578864" duration="4310000" />
+      <workItem from="1730916764411" duration="8844000" />
+      <workItem from="1731023046129" duration="650000" />
+      <workItem from="1731166671406" duration="14959000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/objects/Room.py</url>
+          <line>455</line>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/objects/MessageFilter.py</url>
+          <line>281</line>
+          <option name="timeStamp" value="26" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/objects/MessageFilter.py</url>
+          <line>272</line>
+          <option name="timeStamp" value="27" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/objects/MessageFilter.py</url>
+          <line>271</line>
+          <option name="timeStamp" value="29" />
+        </line-breakpoint>
+      </breakpoints>
       <default-breakpoints>
         <breakpoint type="python-exception">
           <properties notifyOnTerminate="true" exception="BaseException">
@@ -117,7 +149,7 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/IDWebsocket$promptScripts.coverage" NAME="promptScripts Coverage Results" MODIFIED="1730734578577" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/directorPrompts" />
-    <SUITE FILE_PATH="coverage/IDWebsocket$ImprovDirector.coverage" NAME="ImprovDirector Coverage Results" MODIFIED="1730845699578" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/IDWebsocket$promptScripts.coverage" NAME="promptScripts Coverage Results" MODIFIED="1731206050230" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/directorPrompts" />
+    <SUITE FILE_PATH="coverage/IDWebsocket$ImprovDirector.coverage" NAME="ImprovDirector Coverage Results" MODIFIED="1731207137112" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
