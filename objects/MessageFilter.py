@@ -251,11 +251,13 @@ class MessageFilter:
         # Provide feedback question if game is waiting to start
         if self.__currentRoom.gameStatus == "Waiting To Start":
             response['feedbackQuestion'] = self.__currentRoom.getLobbyFeedback([self.__currentClient])
-
+        elif self.__currentRoom.gameStatus == "Theme selection":
+            return self.__currentRoom.prepareGameStateResponse('newCentralTheme')
         return response
 
     async def handleStartPerformance(self, message=None):
         self.__currentRoom.updatePerformerPersonalities()
+        self.__currentRoom.determineLLMPersonality()
         if not self.__currentRoom.themeApproved:
             self.__currentRoom.gameStatus = 'Theme Selection'
             centralTheme = self.__currentRoom.getCentralTheme()
@@ -266,13 +268,14 @@ class MessageFilter:
 
     async def handleCentralThemeResponse(self, message):
         playerReaction = message.get('playerReaction')
-        self.__currentRoom.updatePerformerPersonality(playerReaction, self.currentClient)
-        if len(self.currentRoom.performers) == len(self.currentRoom.themeReactions):
+        self.__currentRoom.addThemeReaction(self.currentClient, playerReaction)
+        progress = len(self.currentRoom.themeReactions)
+        if len(self.currentRoom.performers) >= progress:
             newTheme = self.currentRoom.refineTheme()
-            if self.currentRoom.themeConsensus:
-                return self.initializePerformance()
-            return newTheme
-        progress = [len(self.currentRoom.themeReactions), len(self.currentRoom.performers)]
+            if self.currentRoom.themeConsensus():
+                return await self.initializePerformance()
+            self.currentRoom.clearThemeReactions()
+            return self.__currentRoom.prepareGameStateResponse('newCentralTheme')
         return {'action': 'Waiting for theme response.',
                 'progress': progress}
 
@@ -362,10 +365,11 @@ class MessageFilter:
 
     async def handlePlayAgain(self, message):
         await self.__currentRoom.startNewSong()
-        return self.__currentRoom.prepareGameStateResponse('newGameState')
+        centralTheme = self.__currentRoom.getCentralTheme()
+        response = self.__currentRoom.prepareGameStateResponse('newCentralTheme')
+        return response
 
     async def handleAnnounceStartPerformance(self, message):
-        self.__currentRoom.determineLLMPersonality()
         announcement = self.__query.announceStart(self.__currentRoom)
         return  {'action': 'announcement',
                 'roomName': self.__currentRoomName,

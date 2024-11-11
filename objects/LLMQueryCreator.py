@@ -119,7 +119,7 @@ class LLMQueryCreator:
         prompt = f"{performer.performerString()} "
         if feedback:
             prompt += f"This is feedback from this player of their preferred prompt choices. Feedback: {performer.feedbackString}. "
-        if themeResponse:
+        if room and themeResponse:
             prompt += f"The suggested central theme is {room.centralTheme}. "
             reaction = themeResponse.get('reaction')
             prompt += f"The performer {reaction} the central Theme."
@@ -131,7 +131,7 @@ class LLMQueryCreator:
         performer.personality = performerPersonality
         return
 
-    def updatePerformerPersonality(self, performer):
+    def postPerformanceUpdatePerformerPersonality(self, performer):
         prompt = (f"{performer.performerString()}"
                   f"This performer has just completed a performance."
                   f"Analyze the performance and the feedback."
@@ -218,9 +218,7 @@ class LLMQueryCreator:
         return self.openAIConnector.getResponseFromLLM(self.promptScripts['wellHelloThere'])
 
     def whatsYourName(self):
-        script = "You are the ImprovDirector, designed to guide musicians through an improvised, musical experience. " \
-                 "Briefly introduce yourself to this musician. Ask them their name."
-        return self.openAIConnector.getResponseFromLLM(script)
+        return self.openAIConnector.getResponseFromLLM(self.promptScripts['whatsYourName'])
 
     def whatsYourInstrument(self, name=None):
         prompt = 'You are the director of a group performing a musical improvisation.' \
@@ -249,8 +247,8 @@ class LLMQueryCreator:
         return self.openAIConnector.getResponseFromLLM(prompt, self.systemContext(room))
 
     def getNewTheme(self, room):
-        prompt = f'Performers have responded to the suggest central theme of {room.centralTheme}'
-        prompt = f'The performers responded with: {room.themeResponseString()}'
+        prompt = f'Performers have responded to the suggested central theme of "{room.centralTheme}"'
+        prompt += f'The performers respones: {room.themeResponseString()}'
         prompt += self.promptScripts['tryNewCentralTheme']
         return self.openAIConnector.getResponseFromLLM(prompt, self.systemContext(room))
 

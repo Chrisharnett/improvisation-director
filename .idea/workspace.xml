@@ -5,17 +5,23 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6becd639-e16e-4a97-8e3a-959372b39e7b" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/objects/Improvisation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/LLMQueryCreator.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/LLMQueryCreator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/MessageFilter.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/MessageFilter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/Performer.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Performer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/Room.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Room.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -97,7 +103,7 @@
       <workItem from="1730833578864" duration="4310000" />
       <workItem from="1730916764411" duration="8844000" />
       <workItem from="1731023046129" duration="650000" />
-      <workItem from="1731166671406" duration="14959000" />
+      <workItem from="1731166671406" duration="29648000" />
     </task>
     <servers />
   </component>
@@ -119,24 +125,14 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/objects/Room.py</url>
-          <line>455</line>
-          <option name="timeStamp" value="3" />
+          <url>file://$PROJECT_DIR$/objects/MessageFilter.py</url>
+          <line>251</line>
+          <option name="timeStamp" value="54" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/objects/MessageFilter.py</url>
-          <line>281</line>
-          <option name="timeStamp" value="26" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/objects/MessageFilter.py</url>
-          <line>272</line>
-          <option name="timeStamp" value="27" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/objects/MessageFilter.py</url>
-          <line>271</line>
-          <option name="timeStamp" value="29" />
+          <line>366</line>
+          <option name="timeStamp" value="60" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
@@ -149,7 +145,7 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/IDWebsocket$promptScripts.coverage" NAME="promptScripts Coverage Results" MODIFIED="1731206050230" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/directorPrompts" />
-    <SUITE FILE_PATH="coverage/IDWebsocket$ImprovDirector.coverage" NAME="ImprovDirector Coverage Results" MODIFIED="1731207137112" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/IDWebsocket$promptScripts.coverage" NAME="promptScripts Coverage Results" MODIFIED="1731288715075" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/directorPrompts" />
+    <SUITE FILE_PATH="coverage/IDWebsocket$ImprovDirector.coverage" NAME="ImprovDirector Coverage Results" MODIFIED="1731288732648" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
