@@ -4,8 +4,6 @@ from util.Dynamo.connections import getDynamoDbConnection
 from util.Dynamo.userTableClient import UserTableClient
 from util.JWTVerify import verify_jwt
 import jwt
-from jwt import ExpiredSignatureError, InvalidTokenError
-
 
 class MessageFilter:
     AUTHENTICATED_ACTIONS = {
@@ -64,11 +62,19 @@ class MessageFilter:
     def broadcastHandler(self, value):
         self.__broadcastHandler = value
 
-    def updateRoom(self, newRoom):
-        """Update the current room and its broadcastHandler and queryConnector."""
-        self.__currentRoom = newRoom
-        self.__broadcastHandler = newRoom.broadcastMessage
-        newRoom.LLMQueryCreator = self.__query
+    async def handlePlayAgain(self, message):
+        await self.currentRoom.startNewSong()
+        centralTheme = self.currentRoom.currentImprovisation.getCentralTheme(self.currentRoom)
+        self.currentRoom.currentImprovisation.gameStatus = "Theme Selection"
+        response = self.currentRoom.prepareGameStateResponse('newCentralTheme')
+        return response
+
+    async def handleAnnounceStartPerformance(self, message):
+        announcement = self.__query.announceStart(self.__currentRoom)
+        return {'action': 'announcement',
+                'roomName': self.__currentRoomName,
+                'message': {'announcement': announcement},
+                'disableTimer': True}
 
     async def handleMessage(self, message, currentRoom):
         self.__currentRoomName = message.get('roomName') or 'lobby'
@@ -88,6 +94,7 @@ class MessageFilter:
     async def handleObserveRoom(self, message):
         roomName = message.get('roomName')
         self.__currentRoom.addAudienceToRoom(self.__currentClient)
+        self.removePlayerFromLobby()
         return self.__currentRoom.prepareGameStateResponse(action='newObserver')
 
     async def handleAboutMe(self, message):
@@ -109,17 +116,19 @@ class MessageFilter:
         self.currentClient.updatePlayerProfile(updatedData)
         return {
             'action': 'playerProfileData',
-            'currentPlayer': self.currentClient.playerProfile(),
+            'currentPlayer': self.currentClient.playerProfile,
             'clients': [self.currentClient]}
 
     async def handleUpdateProfile(self, message):
         currentPlayer = message.get('currentPlayer')
-        updatedData = {key: currentPlayer[key] for key in ['screenName', 'instrument', 'personality'] if key in currentPlayer}
+        updatedData = {key: currentPlayer[key] for key in
+                       ['screenName', 'instrument', 'personality']
+                       if key in currentPlayer}
         self.currentClient.updatePlayerProfile(updatedData)
         self.handleUpdateDynamo()
         return {
             'action': 'playerProfileData',
-            'currentPlayer': self.currentClient.playerProfile(),
+            'currentPlayer': self.currentClient.playerProfile,
             'clients': [self.__currentClient],}
 
     async def handleChat(self, message):
@@ -168,6 +177,8 @@ class MessageFilter:
         userId = currentPlayer.get('userId')
         registeredUser = currentPlayer.get('registeredUser')
         roomCreator = currentPlayer.get('roomCreator')
+        instrument = currentPlayer.get('instrument')
+        screenName = currentPlayer.get('screenName')
         if roomCreator:
             self.currentClient.roomCreator = True
 
@@ -175,51 +186,25 @@ class MessageFilter:
             self.currentClient.registeredUser = True
             userData = self.handleGetUserData(userId)
             if userData:
-                currentPlayer['instrument'] = currentPlayer.get('instrument') or userData.get('instrument')
-                currentPlayer['screenName'] = currentPlayer.get('screenName') or userData.get('screenName')
+                currentPlayer['instrument'] = instrument or userData.get('instrument')
+                currentPlayer['screenName'] = screenName or userData.get('screenName')
+                self.__currentClient.userId = userId
+                self.__currentClient.screenName = currentPlayer['screenName']
+                self.__currentClient.instrument = currentPlayer['instrument']
 
-        if not currentPlayer.get('screenName'):
-            return self.requestNewScreenName(userId)
-
-        if not currentPlayer.get('instrument'):
-            return self.requestNewInstrument(userId, currentPlayer['screenName'])
-
-        self.__currentClient.userId = userId
-        self.__currentClient.screenName = currentPlayer['screenName']
-        self.__currentClient.instrument = currentPlayer['instrument']
-
-        if registeredUser:
+            if not currentPlayer.get('screenName') or not currentPlayer.get('instrument'):
+                return self.requestNewPlayerData()
             self.handleUpdateDynamo()
 
         return await self.handleRoomRegistration(message)
-
-    def requestNewScreenName(self, userId):
-        return {
-            'action': 'registration',
-            'clients': [self.__currentClient],
-            'userId': [userId],
-            'message': self.__query.whatsYourName(),
-            'responseRequired': True,
-            'responseAction': 'newScreenName'
-        }
-
-    def requestNewInstrument(self, userId, screenName):
-        return {
-            'action': 'registration',
-            'clients': [self.__currentClient],
-            'userId': [userId],
-            'message': self.__query.whatsYourInstrument(screenName),
-            'responseRequired': True,
-            'responseAction': 'newInstrument'
-        }
 
     async def handleRoomRegistration(self, message):
         currentPlayer = message.get('currentPlayer')
         roomNameToJoin = message.get('roomName')
         if currentPlayer.get('roomCreator'):
             # Create a new room
-            self.__currentRoom = Room(LLMQueryCreator=self.__query, broadcastHandler=self.__broadcastHandler)
-            self.__currentRoomName = self.__currentRoom.roomName
+            self.currentRoom = Room(LLMQueryCreator=self.__query, broadcastHandler=self.__broadcastHandler)
+            self.currentRoomName = self.__currentRoom.roomName
             self.__currentRooms[self.__currentRoomName] = self.__currentRoom
             self.currentClient.roomCreator = True
         else:
@@ -249,29 +234,39 @@ class MessageFilter:
             return await self.handleStartPerformance()
 
         # Provide feedback question if game is waiting to start
-        if self.__currentRoom.gameStatus == "Waiting To Start":
+        status = self.__currentRoom.currentImprovisation.gameStatus
+        if status == "Waiting To Start":
             response['feedbackQuestion'] = self.__currentRoom.getLobbyFeedback([self.__currentClient])
-        elif self.__currentRoom.gameStatus == "Theme selection":
+        elif status == "Theme selection":
             return self.__currentRoom.prepareGameStateResponse('newCentralTheme')
+        elif status == "Improvise":
+            improvisation = self.__currentRoom.currentImprovisation()
+            groupPrompt = self.__currentRoom.performers[0].currentPrompts.get('groupPrompt')
+            improvisation.getPerformerPrompts(groupPrompt, self.__currentRoom)
         return response
 
     async def handleStartPerformance(self, message=None):
+        improv = self.__currentRoom.currentImprovisation
         self.__currentRoom.updatePerformerPersonalities()
         self.__currentRoom.determineLLMPersonality()
         if not self.__currentRoom.themeApproved:
-            self.__currentRoom.gameStatus = 'Theme Selection'
-            centralTheme = self.__currentRoom.getCentralTheme()
+            improv.gameStatus = 'Theme Selection'
+            if not self.currentRoom.currentImprovisation.centralTheme:
+                centralTheme = improv.getCentralTheme(self.currentRoom)
             response = self.__currentRoom.prepareGameStateResponse('newCentralTheme')
             return response
         else:
             return self.initializePerformance()
 
     async def handleCentralThemeResponse(self, message):
+        improv = self.__currentRoom.currentImprovisation
         playerReaction = message.get('playerReaction')
         self.__currentRoom.addThemeReaction(self.currentClient, playerReaction)
         progress = len(self.currentRoom.themeReactions)
-        if len(self.currentRoom.performers) >= progress:
-            newTheme = self.currentRoom.refineTheme()
+        if len(self.currentRoom.performers) == progress:
+            newTheme = improv.refineTheme(
+                self.__currentRoom,
+            )
             if self.currentRoom.themeConsensus():
                 return await self.initializePerformance()
             self.currentRoom.clearThemeReactions()
@@ -280,7 +275,7 @@ class MessageFilter:
                 'progress': progress}
 
     async def initializePerformance(self):
-        await self.__currentRoom.initializeGameState()
+        await self.__currentRoom.currentImprovisation.initializeGameState(self.currentRoom)
         response = self.__currentRoom.prepareGameStateResponse('newGameState')
         return response
 
@@ -295,28 +290,13 @@ class MessageFilter:
         response.update(self.__currentRoom.prepareGameStateResponse())
         return response
 
-    async def handleReactToPrompt(self, message):
-        prompt = message.get('prompt')
-        promptTitle = message.get('promptTitle')
-        reaction = message.get('reaction')
-        await self.__currentRoom.promptReaction(self.__currentClient, prompt, promptTitle, reaction)
-        response=self.__currentRoom.prepareGameStateResponse('newGameState')
-        return response
-
     async def handleEndSong(self, message):
-        await self.__currentRoom.endSong()
-        self.__currentRoom.gameStatus = message.get('action')
-        return self.__currentRoom.prepareGameStateResponse(action='endSong')
+        await self.currentRoom.concludePerformance()
+        return self.currentRoom.prepareGameStateResponse(action='endSong')
 
     async def handlePerformanceComplete(self, message):
-        self.__currentRoom.logEnding()
-        if self.currentRoom.performanceMode:
-            return self.completePerformance()
-
-        response = self.__currentRoom.getPostPerformancePerformerFeedback(self.__currentRoom.performers)
-        response['gameStatus'] = 'debrief'
-        response['action'] = 'debrief'
-        return response
+        self.__currentRoom.currentImprovisation.logEnding()
+        return self.completePerformance()
 
     async def handlePostPerformancePerformerFeedbackResponse(self, message):
         question = message.get('question')
@@ -338,13 +318,22 @@ class MessageFilter:
             'roomName': self.__currentRoomName
         }
 
+    async def handleReactToPrompt(self, message):
+        prompt = message.get('prompt')
+        promptTitle = message.get('promptTitle')
+        reaction = message.get('reaction')
+        await self.__currentRoom.promptReaction(self.__currentClient, prompt, promptTitle, reaction)
+        response=self.__currentRoom.prepareGameStateResponse('newGameState')
+        return response
+
     def completePerformance(self):
-        self.__currentRoom.summarizePerformance()
-        self.dumpGameLog(self.__currentRoom.gameLog)
+        improv = self.__currentRoom.currentImprovisation
+        improv.summarizePerformance(self.currentRoom)
+        self.dumpGameLog(improv.gameLog)
         return {
             'action': 'finalSummary',
             'gameStatus': 'finalSummary',
-            'summary': self.__currentRoom.summary,
+            'summary': improv.summary,
             'roomName': self.__currentRoomName
         }
 
@@ -358,23 +347,27 @@ class MessageFilter:
                 performers.remove(client)
                 break
 
+    def requestNewPlayerData(self):
+        return (
+            {
+                'action': 'getNewPlayerData',
+                'clients': [self.currentClient],
+                'currentPlayer': self.currentClient.playerProfile,
+                'responseRequired': 'getNewPlayerData',
+                'responseAction': 'updatePlayerProfile'
+            }
+        )
+
     def dumpGameLog(self, log):
         dynamoDb = getDynamoDbConnection()
         table = LogTableClient(dynamoDb)
         table.putItem(log)
 
-    async def handlePlayAgain(self, message):
-        await self.__currentRoom.startNewSong()
-        centralTheme = self.__currentRoom.getCentralTheme()
-        response = self.__currentRoom.prepareGameStateResponse('newCentralTheme')
-        return response
-
-    async def handleAnnounceStartPerformance(self, message):
-        announcement = self.__query.announceStart(self.__currentRoom)
-        return  {'action': 'announcement',
-                'roomName': self.__currentRoomName,
-                'message': {'announcement': announcement},
-                 'disableTimer': True}
+    def updateRoom(self, newRoom):
+        """Update the current room and its broadcastHandler and queryConnector."""
+        self.__currentRoom = newRoom
+        self.__broadcastHandler = newRoom.broadcastMessage
+        newRoom.LLMQueryCreator = self.__query
 
     async def verifyAuthentication(self, message):
         action = message.get('action')

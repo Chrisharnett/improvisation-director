@@ -9,15 +9,12 @@ from objects.LLMQueryCreator import LLMQueryCreator
 import http.server
 import socketserver
 import threading
-from util.JWTVerify import verify_jwt
-import urllib.parse
 
 class WebSocketServer:
     def __init__(self):
         self.connectedClients = {}
         self.currentRooms = {}
         self.pingInterval = 20
-        self.pingTimeout = 0
 
     async def handleConnection(self, websocket, path):
         currentClient = None
@@ -32,44 +29,51 @@ class WebSocketServer:
                 room = self.currentRooms.get(roomName) or Room(LLMQueryCreator=queryCreator, roomName=roomName)
                 await room.addPlayerToRoom(currentClient)
                 self.currentRooms[roomName] = room
-
-                # Store the client in the connectedClients dictionary using websocket.id
                 self.connectedClients[websocketId] = currentClient
+                asyncio.create_task(self.sendPeriodicGameState(currentClient))
 
             filter = MessageFilter(currentClient, self.currentRooms, queryCreator)
 
             # Now we wait for any incoming messages from the client
-            async for message in self.pingWebsocket(websocket):
+            async for message in websocket:
                 if message:
-                    incomingMessage = json.loads(message)
-                    print(f"Incoming Message: {incomingMessage.get('action')}")
-                    currentPlayer = incomingMessage.get('currentPlayer')
-                    roomName = incomingMessage.get("roomName", "lobby")
-                    currentRoom = self.currentRooms.get(roomName)
-                    if currentPlayer == 'audience':
-                        print(f"Audience message received")
-                        response = await filter.handleMessage(incomingMessage, currentRoom)
-                        await currentRoom.handleResponse(response)
-                    else:
-                        screenName = currentPlayer.get('screenName') if currentPlayer else websocketId
-                        print(f"{screenName}. MESSAGE: {incomingMessage}")
-                        userId = currentPlayer.get('userId')
-                        if userId:
-                            currentClient.userId = userId
-                        if currentRoom:
+                    currentRoom=None
+                    try:
+                        incomingMessage = json.loads(message)
+                        print(f"Incoming Message: {incomingMessage.get('action')}")
+                        currentPlayer = incomingMessage.get('currentPlayer')
+                        roomName = incomingMessage.get("roomName", "lobby")
+                        currentRoom = self.currentRooms.get(roomName)
+                        if currentPlayer == 'audience':
+                            print(f"Audience message received")
                             response = await filter.handleMessage(incomingMessage, currentRoom)
-                            if response.get('gameState'):
-                                newRoomName = response.get('gameState').get('roomName')
-                                if newRoomName:
-                                    currentRoom = self.currentRooms.get(newRoomName)
                             await currentRoom.handleResponse(response)
                         else:
-                            await currentRoom.handleResponse({
-                                'action': 'error',
-                                'message': 'Room not found.',
-                                'responseRequired': True,
-                                'responseAction': 'joinRoom'
-                            })
+                            screenName = currentPlayer.get('screenName') if currentPlayer else websocketId
+                            print(f"{screenName}. MESSAGE: {incomingMessage}")
+                            if currentPlayer:
+                                userId = currentPlayer.get('userId')
+                                if userId:
+                                    currentClient.userId = userId
+                            if currentRoom:
+                                response = await filter.handleMessage(incomingMessage, currentRoom)
+                                if response.get('gameState'):
+                                    newRoomName = response.get('gameState').get('roomName')
+                                    if newRoomName:
+                                        currentRoom = self.currentRooms.get(newRoomName)
+                                await currentRoom.handleResponse(response)
+                            else:
+                                await currentRoom.handleResponse({
+                                    'action': 'error',
+                                    'message': 'Room not found.',
+                                    'responseRequired': True,
+                                    'responseAction': 'joinRoom'
+                                })
+                    except Exception as e:
+                        traceback.print_exc()
+                        response = currentRoom.prepareGameStateResponse('error')
+                        await currentRoom.broadcastMessage(response)
+                        continue
 
         except websockets.ConnectionClosedOK:
             print(f"Client {websocketId if currentClient else 'unknown'} disconnected normally (going away).")
@@ -81,32 +85,21 @@ class WebSocketServer:
             if currentClient:
                 self.handleDisconnection(currentClient)
 
-    async def pingWebsocket(self, websocket):
+    async def sendPeriodicGameState(self, client):
         try:
             while True:
-                # pingMessage = json.dumps({'action': 'ping'})
-                # await websocket.send(pingMessage)
-                # await asyncio.sleep(self.pingInterval)
-                try:
-                    # incomingMessage = await asyncio.wait_for(websocket.recv(), timeout=self.pingTimeout)
-                    incomingMessage = await websocket.recv()
-                    data = json.loads(incomingMessage)
-
-                    if data.get('action') == 'pong':
-                        pass
-                    else:
-                        yield incomingMessage
-                except asyncio.TimeoutError:
-                    print(f"No pong received from client {websocket.id}, closing connection.")
-                    raise websockets.ConnectionClosed(1001, "Ping timeout")
+                await asyncio.sleep(self.pingInterval)
+                currentRoom = client.currentRoom
+                if currentRoom and (len(currentRoom.performers) > 0):
+                    response = currentRoom.prepareGameStateResponse('heartbeat')
+                    await currentRoom.broadcastMessage(response)
         except websockets.ConnectionClosed:
-            yield None
+            print(f"WebSocket {client.websocket.id} closed during periodic gameState updates.")
 
     def handleDisconnection(self, client):
-        # Use the websocket.id (UUID) to remove the client
         for room in self.currentRooms.values():
             room.leaveRoom(client)
-        websocketId = str(client.websocket.id)  # Assuming client.websocket gives access to the WebSocket
+        websocketId = str(client.websocket.id)
         if websocketId in self.connectedClients:
             del self.connectedClients[websocketId]
 

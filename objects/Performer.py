@@ -16,6 +16,7 @@ class Performer:
         self.__registeredUser = False
         self.__roomCreator = False
         self.__personality = None
+        self.__currentRoom = None
 
     @property
     def websocket(self):
@@ -94,6 +95,15 @@ class Performer:
         self.__personality = personality
         self.updateDynamo()
 
+    @property
+    def currentRoom(self):
+        return self.__currentRoom
+
+    @currentRoom.setter
+    def currentRoom(self, currentRoom):
+        self.__currentRoom = currentRoom
+
+
     def addPrompt(self, newPrompt, elapsedTime):
         for promptTitle, prompt in newPrompt.items():
             if prompt:
@@ -150,7 +160,7 @@ class Performer:
             'sub': self.__userId,
             'screenName': self.__screenName,
             'instrument': self.__instrument,
-            'personality': self.__personality
+            'personality': self.__personality,
         })
 
     def updateUserData(self, message):
@@ -163,6 +173,7 @@ class Performer:
         self.__promptHistory = []
         self.__feedbackLog = {}
 
+    @property
     def playerProfile(self):
         return {'userId': self.__userId,
                 'screenName': self.__screenName,

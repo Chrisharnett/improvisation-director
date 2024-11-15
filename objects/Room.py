@@ -1,14 +1,11 @@
 import asyncio
 import json
-from util.timeStamp import timeStamp
-from datetime import datetime
 from objects.Improvisation import Improvisation
-import random
 
 class Room:
     def __init__(self, LLMQueryCreator=None, roomName=None, broadcastHandler=None):
         self.__LLMQueryCreator = LLMQueryCreator
-        if roomName == None:
+        if roomName is None:
             self.__roomName = self.__LLMQueryCreator.generateRoomName()
         else:
             self.__roomName = roomName
@@ -20,13 +17,7 @@ class Room:
         self.__performanceMode = False
         self.__themeReactions = []
         self.__themeApproved = False
-        self.__improvisations = []
-
-        # self.__gameStatus = 'Waiting To Start'
-        # self.__gameLog = {}
-        # self.__summary = None
-        # self.__startTime = None
-        # self.__centralTheme = None
+        self.__improvisations = [Improvisation(self.__performers, self.__LLMQueryCreator)]
 
     @property
     def LLMQueryCreator(self):
@@ -35,21 +26,6 @@ class Room:
     @LLMQueryCreator.setter
     def LLMQueryCreator(self, LLMQueryCreator):
         self.__LLMQueryCreator = LLMQueryCreator
-
-    def songCount(self):
-        return len(self.__improvisations)
-
-    # @songCount.setter
-    # def songCount(self, count):
-    #     self.__songCount = count
-
-    # @property
-    # def gameStatus(self):
-    #     return self.__gameStatus
-    #
-    # @gameStatus.setter
-    # def gameStatus(self, gameStatus):
-    #     self.__gameStatus = gameStatus
 
     @property
     def roomName(self):
@@ -71,14 +47,6 @@ class Room:
     def broadcastHandler(self):
         return self.__broadcastHandler
 
-    # @property
-    # def gameLog(self):
-    #     return self.__gameLog
-
-    # @property
-    # def summary(self):
-    #     return self.__summary
-
     @property
     def performanceMode(self):
         return self.__performanceMode
@@ -86,18 +54,6 @@ class Room:
     @performanceMode.setter
     def performanceMode(self, boolean):
         self.__performanceMode = boolean
-
-    # @property
-    # def startTime(self):
-    #     return self.__startTime
-    #
-    # @property
-    # def centralTheme(self):
-    #     return self.__centralTheme
-    #
-    # @centralTheme.setter
-    # def centralTheme(self, centralTheme):
-    #     self.__centralTheme = centralTheme
 
     @property
     def themeApproved(self):
@@ -123,39 +79,46 @@ class Room:
     def improvisations(self, improvisations):
         self.__improvisations = improvisations
 
+    @property
+    def songCount(self):
+        return len(self.__improvisations)
+
+    @property
     def currentImprovisation(self):
         if self.__improvisations:
             return self.__improvisations[-1]
+        return None
 
-    def addImprovisation(self, centralTheme, startTime):
-        improvisation = Improvisation(self.__LLMQueryCreator, centralTheme, startTime)
+    def addImprovisation(self, centralTheme=None, startTime=None):
+        improvisation = Improvisation(self.performers, self.__LLMQueryCreator, centralTheme, startTime)
         self.__improvisations.append(improvisation)
-
-    # def setStartTime(self):
-    #     if not self.__startTime:
-    #         self.__startTime = timeStamp()
-    #         return 0
-    #     else:
-    #         return 'Start time already set.'
-
-    # def getCurrentPerformanceTime(self):
-    #     if self.__startTime:
-    #         start = datetime.fromisoformat(self.__startTime)
-    #         currentTime = datetime.now()
-    #         elapsed = currentTime - start
-    #         return round(elapsed.total_seconds(), 2)
-    #     else:
-    #         return 'Start time not set.'
 
     async def addPlayerToRoom(self, performer):
         self.__performers.append(performer)
-        if self.gameStatus == "improvise":
+        performer.currentRoom = self
+        if self.currentImprovisation is not None and self.currentImprovisation.gameStatus == "improvise":
             if len(self.performers) > 0:
                 groupPrompt = self.performers[0].currentPrompts['groupPrompt']
                 self.LLMQueryCreator.createPerformerPrompts(self, groupPrompt)
 
     def addAudienceToRoom(self, client):
+        client.currentRoom = self
         self.__audience.append(client)
+
+    async def broadcastMessage(self, message):
+        if self.__performers:
+           await asyncio.gather(*[performer.websocket.send(json.dumps(message)) for performer in self.__performers])
+        if self.__audience:
+            await asyncio.gather(*[audienceMember.websocket.send(json.dumps(message)) for audienceMember in self.__audience])
+        if message.get('action') != 'heartbeat':
+            print(f"Broadcast {message.get('action')} to room {self.__roomName}")
+        return
+
+    async def concludePerformance(self):
+        finalGroupPrompt = self.LLMQueryCreator.getEndSongPrompt(self)
+        await self.currentImprovisation.getPerformerPrompts(finalGroupPrompt, self)
+        self.currentImprovisation.gameStatus = 'endSong'
+        return
 
     def sayHello(self):
         return self.__LLMQueryCreator.getWelcomeMessage()
@@ -170,13 +133,7 @@ class Room:
         for task in self.__scheduledTasks.values():
             task.cancel()
 
-    async def broadcastMessage(self, message):
-       if self.__performers:
-            await asyncio.gather(*[performer.websocket.send(json.dumps(message)) for performer in self.__performers])
-       if self.__audience:
-            await asyncio.gather(*[audienceMember.websocket.send(json.dumps(message)) for audienceMember in self.__audience])
-       print(f"Broadcast {message.get('action')} to room {self.__roomName}")
-       return
+
 
     async def sendMessageToUser(self, message, client):
         response = message.copy()
@@ -216,42 +173,11 @@ class Room:
             })
         return gameStateJSON
 
-
-
-    # def getSortedPromptString(self):
-    #     sortedPrompts = self.getSortedPromptList()
-    #     string = ""
-    #     for i, prompt in enumerate(sortedPrompts):
-    #         timestamp = prompt.get('timeStamp')
-    #         promptTitle = prompt.get('promptTitle')
-    #         currentPrompt = prompt.get('prompt')
-    #         reaction = prompt.get('reaction')
-    #         userId = prompt.get('userId')
-    #         string += f"Prompt {i+1}. Seconds elapsed: {timestamp} . Title: {promptTitle}"
-    #         if promptTitle == "performerPrompt" or reaction:
-    #             string += f"User: {userId}. "
-    #         string += f"Prompt:  {currentPrompt}. "
-    #         string += f"Performer reaction: {reaction}. " if reaction else ""
-    #     return string or None
-    #
-    # def getPerformerStrings(self):
-    #     performersString = "This performance features the following performers. "
-    #     for performer in self.__performers:
-    #         performersString += performer.performerString()
-    #     return performersString
-
-    # def gameStateString(self):
-    #     string = ""
-    #     if self.__centralTheme:
-    #         string += f"The central theme of this improvisation is {self.__centralTheme}. "
-    #     string += self.getPerformerStrings()
-    #     promptString = self.getSortedPromptString()
-    #     if promptString:
-    #         string += f"Here's the sequence of prompts and reactions so far. {self.getSortedPromptString()}"
-    #     return string
-
     def prepareGameStateResponse(self, action=None):
-        gameState = {'roomName': self.roomName, 'gameStatus': self.gameStatus, 'centralTheme': self.__centralTheme}
+        improvisation = self.currentImprovisation
+        gameState = {'roomName': self.roomName}
+        if improvisation:
+            gameState.update({'gameStatus': improvisation.gameStatus, 'centralTheme': improvisation.centralTheme})
         gameState.update(self.prepareGameStatePerformers())
         response = {
             'gameState': gameState,
@@ -274,12 +200,9 @@ class Room:
     def updatePerformerPersonality(self, currentClient, reaction):
         for performer in self.__performers:
             if performer.userId == currentClient.userId:
-                self.LLMQueryCreator.getPerformerPersonality(currentClient, room=self, themeResponse=reaction)
+                theme = self.currentImprovisation.centralTheme
+                self.LLMQueryCreator.getPerformerPersonality(currentClient, themeResponse=reaction, centralTheme=theme)
         return
-
-    # def getCentralTheme(self):
-    #     self.__centralTheme = self.LLMQueryCreator.getCentralTheme(self)
-    #     return self.__centralTheme
 
     def themeConsensus(self):
         vote = 0
@@ -302,123 +225,63 @@ class Room:
         self.updatePerformerPersonality(player, reaction)
 
     def clearThemeReactions(self):
-        self.__themeReactions = []
-
-    # def refineTheme(self):
-    #     newTheme = self.LLMQueryCreator.getNewTheme(self)
-    #     self.__centralTheme = newTheme
-    #     return self.centralTheme
-
-    # async def initializeGameState(self):
-    #     self.setStartTime()
-    #     groupPrompt = self.LLMQueryCreator.getFirstPrompt(self)
-    #     await self.getPerformerPrompts(groupPrompt)
-    #     self.gameStatus = "improvise"
-    #     await self.schedulePromptUpdate('groupPrompt')
-
-    # async def getGroupPrompt(self, promptTitle='groupPrompt'):
-    #     newPrompt = await self.LLMQueryCreator.getUpdatedPrompts(self, promptTitle)
-    #     await self.schedulePromptUpdate(promptTitle)
-    #     return newPrompt
-
-    # async def getPerformerPrompts(self, groupPrompt):
-    #     performerPrompts = self.LLMQueryCreator.createPerformerPrompts(self, groupPrompt)
-    #     for userId in performerPrompts.keys():
-    #         for performer in self.performers:
-    #             if performer.userId == userId:
-    #                 performer.addAndLogPrompt(performerPrompts[userId], self.getCurrentPerformanceTime())
-    #                 performer.addAndLogPrompt(groupPrompt, self.getCurrentPerformanceTime())
-    #                 if 'endPrompt' in groupPrompt:
-    #                     if performer.currentPrompts.get('groupPrompt'):
-    #                         del performer.currentPrompts['groupPrompt']
-    #     if 'endPrompt' not in groupPrompt:
-    #         await self.schedulePromptUpdate('performerPrompt')
-    #     return
-
-    # def assignNewPrompts(self, newPrompts):
-    #     for userId, prompt in newPrompts.items():
-    #         for performer in self.__performers:
-    #             if userId == performer.userId:
-    #                 performer.addAndLogPrompt(prompt, self.getCurrentPerformanceTime())
+        self.themeReactions = []
 
     async def promptReaction(self, currentClient, currentPrompt, currentPromptTitle, reaction):
-        currentClient.logPrompt({currentPromptTitle: currentPrompt}, self.getCurrentPerformanceTime(), reaction)
-        if 'endSong' != self.gameStatus:
+        currentClient.logPrompt(
+            {currentPromptTitle: currentPrompt},
+            self.currentImprovisation.getCurrentPerformanceTime(),
+            reaction)
+        if 'endSong' != self.currentImprovisation.gameStatus:
             match reaction:
                 case 'moveOn':
-                    await self.handleMoveOn(currentPrompt, currentPromptTitle, currentClient)
+                    await self.handleMoveOn(currentPromptTitle, currentClient)
                 case 'reject':
-                    await self.handleRejectedPrompts(currentClient, currentPrompt, currentPromptTitle)
+                    await self.handleRejectedPrompts(currentClient, currentPromptTitle)
                 case _:
                     return
 
-    async def handleMoveOn(self, prompt, promptTitle, currentClient):
+    async def handleMoveOn(self, promptTitle, currentClient):
         match promptTitle:
             case 'groupPrompt':
                 newGroupPrompt = await self.LLMQueryCreator.getUpdatedPrompts(self, promptTitle)
-                await self.currentImprovisation().getPerformerPrompts(newGroupPrompt)
+                if newGroupPrompt == 'endSong':
+                    await self.concludePerformance()
+                    return
+                await self.currentImprovisation.getPerformerPrompts(newGroupPrompt, self)
+                return
 
             case 'performerPrompt':
                 if len(self.performers) > 0:
                     groupPrompt = self.performers[0].currentPrompts.get('groupPrompt')
                     if groupPrompt:
-                        newUserPrompt  = self.LLMQueryCreator.moveOnFromPerformerPrompt(self, currentClient, groupPrompt)
-                        currentClient.addAndLogPrompt(newUserPrompt, self.currentImprovisation().getCurrentPerformanceTime())
+                        newUserPrompt  = self.LLMQueryCreator.moveOnFromPerformerPrompt(
+                            self,
+                            currentClient,
+                            groupPrompt
+                        )
+                        currentClient.addAndLogPrompt(
+                            newUserPrompt,
+                            self.currentImprovisation.getCurrentPerformanceTime()
+                        )
 
-    async def handleRejectedPrompts(self, currentClient, prompt, promptTitle):
+    async def handleRejectedPrompts(self, currentClient, promptTitle):
         match promptTitle:
             case 'groupPrompt':
                 newGroupPrompt = await self.LLMQueryCreator.getUpdatedPrompts(self, promptTitle)
-                await self.currentImprovisation().getPerformerPrompts(newGroupPrompt)
-                # await self.schedulePromptUpdate(promptTitle)
+                await self.currentImprovisation.getPerformerPrompts(newGroupPrompt, self)
             case 'performerPrompt':
                 if len(self.performers) > 0:
                     groupPrompt = self.performers[0].currentPrompts.get('groupPrompt')
                     if groupPrompt:
-                        updatedPerformerPrompt = self.LLMQueryCreator.rejectPerformerPrompt(self, currentClient, groupPrompt)
-                        currentClient.addAndLogPrompt(updatedPerformerPrompt, self.currentImprovisation.getCurrentPerformanceTime())
-
-    # async def schedulePromptUpdate(self, promptTitle):
-    #     try:
-    #         interval = int(self.LLMQueryCreator.getIntervalLength(self.gameStateString(), promptTitle))
-    #         # if interval > 120:
-    #         #     interval = random.randint(45, 300)
-    #     except ValueError:
-    #         interval = random.randint(45, 300)
-    #     if promptTitle in self.__scheduledTasks:
-    #         existingTask = self.__scheduledTasks[promptTitle]
-    #         if not existingTask.done():
-    #             existingTask.cancel()
-    #         try:
-    #             await existingTask
-    #         except asyncio.CancelledError:
-    #             pass
-    #         except Exception as e:
-    #             print(f'Error: {e}')
-    #     if promptTitle:
-    #         self.__scheduledTasks[promptTitle] = asyncio.create_task(self.updatePrompt(interval, promptTitle))
-
-    # async def updatePrompt(self, interval, promptTitle):
-    #     improvisation = self.currentImprovisation()
-    #     print(f'update {promptTitle} in {interval} seconds')
-    #     await asyncio.sleep(interval)
-    #     if 'endSong' != self.gameStatus:
-    #         newPrompts = await self.LLMQueryCreator.getUpdatedPrompts(self, promptTitle)
-    #         if 'groupPrompt' in newPrompts:
-    #             await self.getPerformerPrompts(newPrompts)
-    #         else:
-    #             self.assignNewPrompts(newPrompts)
-    #         response = self.prepareGameStateResponse('newGameState')
-    #         await self.handleResponse(response)
-    #         if len(self.__performers) > 0:
-    #             await self.schedulePromptUpdate(promptTitle)
-    #         else:
-    #             print(f"No active connections in room '{self.__roomName}'. Stopping prompt updates.")
-
-    async def endSong(self):
-        finalGroupPrompt = self.LLMQueryCreator.getEndSongPrompt(self)
-        self.gameStatus = 'endSong'
-        return finalGroupPrompt
+                        updatedPerformerPrompt = self.LLMQueryCreator.rejectPerformerPrompt(
+                            self,
+                            currentClient, groupPrompt
+                        )
+                        currentClient.addAndLogPrompt(
+                            updatedPerformerPrompt,
+                            self.currentImprovisation.getCurrentPerformanceTime()
+                        )
 
     def getLobbyFeedback(self, currentPerformers):
         feedbackType = 'performerLobby'
@@ -429,7 +292,7 @@ class Room:
                  'questions': questions}
 
     def getPostPerformancePerformerFeedback(self, currentPerformers):
-        self.__gameStatus = 'debrief'
+        self.currentImprovisation.gameStatus = 'debrief'
         feedbackType = 'postPerformancePerformerFeedback'
         questions = {}
         for performer in currentPerformers:
@@ -438,53 +301,22 @@ class Room:
                     performer.feedbackLog.get('postPerformancePerformerFeedbackResponse') or [],
                     performer.userId
                 )
-        response =  self.completeFeedbackResponse(questions, feedbackType, currentPerformers, 'postPerformancePerformerFeedbackResponse')
-        response['action'] = 'debrief'
+        response =  self.completeFeedbackResponse(questions, feedbackType, 'postPerformancePerformerFeedbackResponse')
         return response
 
-    def completeFeedbackResponse(self, questions, feedbackType, currentPerformers, responseRequired=None):
-        return {'roomName': self.__roomName,
-                'feedbackQuestion': {'feedbackType': feedbackType,
+    def completeFeedbackResponse(self, questions, feedbackType, responseRequired=None):
+        return {'feedbackQuestion': {'feedbackType': feedbackType,
                                      'questions': questions},
                 'responseRequired': responseRequired,
-                'clients': currentPerformers
+                'action': 'debrief',
+                'gameState': self.prepareGameStateResponse('debrief')
                 }
-
-    def getClosingTimeSummary(self):
-        self.__summary = self.LLMQueryCreator.closingSummary(self)
-
-    def logEnding(self):
-        self.__gameLog['endingTimestamp'] = timeStamp()
-
-    def createGameLog(self):
-        performers = []
-        for performer in self.__performers:
-            if performer.registeredUser:
-                self.LLMQueryCreator.postPerformanceUpdatePerformerPersonality(performer)
-            performers.append({
-                'userId': performer.userId,
-                'instrument': performer.instrument,
-                'personality': performer.personality
-            })
-
-        self.__gameLog['roomName'] = f"{self.__roomName}-{self.__songCount}"
-        self.__gameLog['performers'] = performers
-        self.__gameLog['promptLog'] = self.getSortedPromptList()
-        self.__gameLog['llmPersonality'] = self.__LLMQueryCreator.personality
-        self.__gameLog['centralTheme'] = self.__centralTheme
-        self.__gameLog['summary'] = self.__summary
 
     async def startNewSong(self):
         for performer in self.__performers:
             performer.resetPerformer()
-        self.centralTheme = None
+        self.addImprovisation()
         self.__themeReactions = []
         self.__themeApproved = False
-        self.gameStatus = "newCentralTheme"
-        self.songCount += 1
+        self.currentImprovisation.gameStatus = "newCentralTheme"
         self.LLMQueryCreator.refreshPerformanceLogs()
-        # await self.initializeGameState()
-
-    def summarizePerformance(self):
-        self.getClosingTimeSummary()
-        self.createGameLog()
