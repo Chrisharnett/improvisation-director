@@ -83,13 +83,13 @@ class Improvisation:
             performers.append({
                 'userId': performer.userId,
                 'instrument': performer.instrument,
-                'personality': performer.personality
+                'personality': performer.personality.to_decimalDict()
             })
 
         self.__gameLog['roomName'] = f"{room.roomName}-{room.songCount}"
         self.__gameLog['performers'] = performers
         self.__gameLog['promptLog'] = self.getSortedPromptList()
-        self.__gameLog['llmPersonality'] = self.__LLMQueryCreator.personality
+        self.__gameLog['llmPersonality'] = self.__LLMQueryCreator.personality.to_decimalDict()
         self.__gameLog['centralTheme'] = self.__centralTheme
         self.__gameLog['summary'] = self.__summary
 

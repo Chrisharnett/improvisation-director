@@ -1,6 +1,7 @@
-from util.timeStamp import timeStamp
 from util.Dynamo.userTableClient import UserTableClient
 from util.Dynamo.connections import getDynamoDbConnection
+from objects.Personalities import PerformerPersonality
+from decimal import Decimal
 
 class Performer:
     def __init__(self, websocket, userId=None, screenName=None, instrument=None):
@@ -15,7 +16,7 @@ class Performer:
         self.__promptHistory = []
         self.__registeredUser = False
         self.__roomCreator = False
-        self.__personality = None
+        self.__personality = PerformerPersonality()
         self.__currentRoom = None
 
     @property
@@ -123,10 +124,12 @@ class Performer:
             'userId': self.__userId
         }
         self.__promptHistory.append(logPrompt)
+        return
 
     def addAndLogPrompt(self, prompt, elapsedTime):
         self.addPrompt(prompt, elapsedTime)
         self.logPrompt(prompt, elapsedTime)
+        return
 
     def logFeedback(self, type, question, response, options=None):
         if type not in self.__feedbackLog:
@@ -136,6 +139,7 @@ class Performer:
             'options': options,
             'response': response
         })
+        return
 
     def feedbackString(self):
         feedbackString = ""
@@ -148,19 +152,19 @@ class Performer:
         return feedbackString
 
     def performerString(self):
-        description = f"userId: {self.userId}. "
-        description += f"They use the name {self.screenName}. "
-        description += f"They can play {self.instrument}. "
+        description = f"{self.screenName} (userId: {self.userId}). They play {self.instrument}.  "
         if self.__personality:
-            description += f"There personality is: {self.__personality}. "
+            description += f"Their personality is: {self.__personality.personalityString()}. "
         return description
 
     def updateDynamo(self):
+        personality = self.personality.to_dict()
+        personality["attributes"] = {k: Decimal(str(v)) for k, v in personality["attributes"].items()}
         self.__table.putItem({
             'sub': self.__userId,
             'screenName': self.__screenName,
             'instrument': self.__instrument,
-            'personality': self.__personality,
+            'personality': personality,
         })
 
     def updateUserData(self, message):

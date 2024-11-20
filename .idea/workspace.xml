@@ -5,13 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6becd639-e16e-4a97-8e3a-959372b39e7b" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/data/PersonalityAttributes.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/objects/Personalities.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/Improvisation.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Improvisation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/LLMQueryCreator.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/LLMQueryCreator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/MessageFilter.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/MessageFilter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/OpenAIConnector.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/OpenAIConnector.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/Performer.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Performer.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/Room.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Room.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/objects/WebSocketServer.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/WebSocketServer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/util/awsSecretRetrieval.py" beforeDir="false" afterPath="$PROJECT_DIR$/util/awsSecretRetrieval.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -52,6 +56,11 @@
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/data" />
+    </key>
+  </component>
   <component name="RunManager">
     <configuration name="ImprovDirector" type="PythonConfigurationType" factoryName="Python">
       <module name="IDWebsocket" />
@@ -109,7 +118,14 @@
       <workItem from="1731379708210" duration="5373000" />
       <workItem from="1731423539350" duration="6543000" />
       <workItem from="1731586979152" duration="10659000" />
-      <workItem from="1731681548045" duration="1159000" />
+      <workItem from="1731681548045" duration="41647000" />
+      <workItem from="1731924131889" duration="267000" />
+      <workItem from="1731929875699" duration="1561000" />
+      <workItem from="1731977715671" duration="1645000" />
+      <workItem from="1731980144219" duration="597000" />
+      <workItem from="1731981253473" duration="440000" />
+      <workItem from="1731985600992" duration="3138000" />
+      <workItem from="1732060380312" duration="6973000" />
     </task>
     <servers />
   </component>
@@ -131,9 +147,19 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/objects/Improvisation.py</url>
-          <line>96</line>
-          <option name="timeStamp" value="67" />
+          <url>file://$PROJECT_DIR$/objects/OpenAIConnector.py</url>
+          <line>383</line>
+          <option name="timeStamp" value="145" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/objects/WebSocketServer.py</url>
+          <line>65</line>
+          <option name="timeStamp" value="167" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/objects/WebSocketServer.py</url>
+          <line>66</line>
+          <option name="timeStamp" value="168" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
@@ -144,9 +170,15 @@
         </breakpoint>
       </default-breakpoints>
     </breakpoint-manager>
+    <watches-manager>
+      <configuration name="PythonConfigurationType">
+        <watch expression="structuredOutput" />
+        <watch expression="Unsupported type#0#" />
+      </configuration>
+    </watches-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/IDWebsocket$promptScripts.coverage" NAME="promptScripts Coverage Results" MODIFIED="1731288715075" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/directorPrompts" />
-    <SUITE FILE_PATH="coverage/IDWebsocket$ImprovDirector.coverage" NAME="ImprovDirector Coverage Results" MODIFIED="1731617639215" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/IDWebsocket$promptScripts.coverage" NAME="promptScripts Coverage Results" MODIFIED="1731806677962" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/directorPrompts" />
+    <SUITE FILE_PATH="coverage/IDWebsocket$ImprovDirector.coverage" NAME="ImprovDirector Coverage Results" MODIFIED="1732068698394" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

@@ -42,3 +42,11 @@ def cognitoSecret():
     secret = retrieveSecret(secretName)
     return secret.get('userPoolId'), secret.get('clientId')
 
+def origins():
+    secretName = "improv_director/origins"
+    secret = retrieveSecret(secretName)
+    originString =  secret.get('origins')
+    originList = originString.split(',') if originString else []
+    originList = [origin.strip() for origin in originList]
+    return originList
+

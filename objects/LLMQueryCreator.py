@@ -2,6 +2,8 @@ from objects.OpenAIConnector import OpenAIConnector
 from util.Dynamo.promptTableClient import PromptTableClient
 from util.Dynamo.logTableClient import LogTableClient
 from util.Dynamo.connections import getDynamoDbConnection
+from objects.Personalities import LLMPersonality
+from copy import deepcopy
 
 class LLMQueryCreator:
     def __init__(self):
@@ -12,7 +14,7 @@ class LLMQueryCreator:
         self.__performanceLogs = None
         self.__currentRoomNames = None
         self.__openAIConnector = OpenAIConnector()
-        self.__personality = None
+        self.__personality = LLMPersonality()
         self.__centralTheme = None
 
     @property
@@ -59,21 +61,21 @@ class LLMQueryCreator:
     def systemContext(self, performers=None, centralTheme=None):
         context = "You are the director of this musical improvisation. "
         if self.__personality:
-            context += f" {self.__personality}. "
+            context += f"Your musical personality is:  {self.__personality.personalityString()}. "
         if performers:
-            context += "The performers in the room are :"
+            context += "On stage, ready to performer we have :"
             for i, performer in enumerate(performers):
-                context += f"Performer {i + 1}: {performer.performerString()} "
+                context += f"{i + 1}: {performer.performerString()} "
             context += "A player can only play one instrument at a time. "
-            if centralTheme:
-                context += f"The central theme for this improvisation is {centralTheme}"
+        if centralTheme:
+            context += f"The central theme for this improvisation is {centralTheme}"
+        f'The musicians depend on your prompts to direct and inspire their performance. ' \
+        f'A prompt initiates change in the current performance.' \
+        f'The prompts you create must be 5-8 words. '
         return context
 
     def promptContext(self, room):
-        prompt_context = f'You are the director of musical improvisations. ' \
-                         f'The musicians depend on your prompts to direct their performance. ' \
-                         f'A prompt creates change in the current performance.' \
-                         f'The prompts you create must be 5-8 words. {room.currentImprovisation.gameStateString()}'
+        prompt_context = room.currentImprovisation.gameStateString()
         return prompt_context
 
     def postPerformancePerformerFeedback(self, currentRoom, feedbackLogs, userId):
@@ -98,25 +100,67 @@ class LLMQueryCreator:
         length =  self.openAIConnector.getResponseFromLLM(prompt)
         return length
 
-    def determineLLMPersonalityFromFeedback(self, feedback):
-        feedbackText = self.promptScripts['determineLLMPersonality'] + " Feedback:\n"
-        if feedback:
-            for i, response in enumerate(feedback):
-                question = response.get('question')
-                optionList = response.get('options')
-                options = ""
-                if optionList:
-                    for j, option in enumerate(optionList):
-                        options += f"{j+1}. {option}"
-                feedbackText += f"{i + 1}. Question: \'{question}\" Options: \"{options}\" Preference: {response.get('response')})\n"
-        else :
-            feedbackText += "Performers did not provide feedback, choose a random personality. "
-        newPersonality = self.openAIConnector.getResponseFromLLM(feedbackText, self.systemContext())
-        self.__personality = newPersonality
-    #     TODO: get improvisation concept
+    def attributeChangesString(self, oldPersonality, newPersonality):
+        changes = []
+        for attr, old_value in oldPersonality.attributes.items():
+            new_value = newPersonality.attributes.get(attr, None)
+            if new_value is not None:
+                changes.append(f"{attr}: ({old_value}) -> ({new_value})")
+            else:
+                changes.append(f"{attr}: ({old_value}) -> (Not updated)")
+        return ", ".join(changes)
 
-    def getPerformerPersonality(self, performer, centralTheme=None, feedback=False, themeResponse=None):
-        # Explore creating specific attributes at a later time for ratings. i.e adventurous, technical skill, etc.
+    def printPersonalityChanges(self, name, oldPersonality, newPersonality):
+        changeSummary = (
+            f"{name}"
+            f"{self.attributeChangesString(oldPersonality, newPersonality)}\n"
+            f"'{oldPersonality.description}'\n'{newPersonality.description}'"
+        )
+        print(changeSummary)
+
+    # def determineLLMPersonalityFromFeedback(self, feedback=None, performers=None):
+    #     prompt = "Create a personality to describe the LLM that will direct this improvisation. " + self.promptScripts['determineLLMPersonality']
+    #     oldPersonality = deepcopy(self.personality)
+    #     if feedback:
+    #         prompt += f'Feedback: {feedback} .'
+    #     newPersonality = self.openAIConnector.getResponseFromLLM(prompt, self.systemContext(performers=performers))
+    #     self.personality.description = newPersonality
+    #     self.printPersonalityChanges('llm', oldPersonality, self.personality)
+
+    def initializeLLMPersonality(self, performers):
+        prompt = "Based on the performers in this improvisation, suggest values for the llm personality attributes in this improvisation. " \
+                 "The values should attempt to work with the performers in this performance, " \
+                 "with perhaps one or 2 values different to create interest. "
+        oldPersonality = deepcopy(self.personality)
+        personality = self.openAIConnector.getInitialLLMPersonalityAttributes(prompt, self.personality, self.systemContext(performers))
+        prompt = "Based on the performers in the improvisation and the initial attribute scores in the LLM, " + self.promptScripts['determineLLMPersonality']
+        newPersonality = self.openAIConnector.getResponseFromLLM((prompt), self.systemContext(performers))
+        self.personality.description = newPersonality
+        self.printPersonalityChanges('llm', oldPersonality, self.personality)
+        return
+
+    def adjustLLMPersonality(self, performers, feedbackString):
+        oldPersonality = deepcopy(self.personality)
+        prompt = f"{feedbackString}. Based on the feedback given, revise the personality that describes this llm to better lead this improvisation."
+        self.openAIConnector.adjustPersonalityScores(prompt, self.personality, "llm", self.systemContext(performers=performers))
+        newPersonality = self.openAIConnector.getResponseFromLLM((prompt + self.promptScripts['determineLLMPersonality']), self.systemContext(performers=performers))
+        self.personality.description = newPersonality
+        self.printPersonalityChanges('llm', oldPersonality, self.personality)
+        return
+
+    def getNewLLMPersonality(self, performers):
+        prompt=f"Create a different, contrasting, personality to guide the next performance. "
+        originalContext = self.systemContext(performers)
+        originalPersonality = deepcopy(self.personality)
+        self.openAIConnector.adjustPersonalityScores(prompt, originalPersonality, "llm", originalContext)
+        prompt = f"These are the attributes of the next musical director {self.personality.attributeString()}. " \
+                 f"Create a description of this new personality. {self.promptScripts['determineLLMPersonality']}"
+        newPersonality = self.openAIConnector.getResponseFromLLM(prompt, originalContext)
+        self.personality.description = newPersonality
+        self.printPersonalityChanges('llm', originalPersonality, self.personality)
+        return
+
+    def processPerformerFeedback(self, performer, centralTheme=None, feedback=False, themeResponse=None):
         prompt = f"{performer.performerString()} "
         if feedback:
             prompt += f"This is feedback from this player of their preferred prompt choices. Feedback: {performer.feedbackString}. "
@@ -127,10 +171,37 @@ class LLMQueryCreator:
             suggestion = themeResponse.get('suggestion')
             if suggestion:
                 prompt += f"The performer has this suggestion for the theme. {suggestion}. "
+        return prompt
+
+    def getPerformerPersonality(self, performer, feedbackString):
+        oldPersonality = deepcopy(performer.personality)
+        self.updatePerformerAttributes(performer, feedbackString)
+        prompt = self.processPerformerFeedback(performer, feedbackString)
         prompt += self.promptScripts['getPerformerPersonality']
-        performerPersonality = self.openAIConnector.getResponseFromLLM(prompt)
-        performer.personality = performerPersonality
-        return
+        performerPersonality = self.openAIConnector.getResponseFromLLM(prompt, self.systemContext())
+        performer.personality.description = performerPersonality
+        self.printPersonalityChanges(performer.screenName, oldPersonality, performer.personality)
+
+        return performerPersonality
+
+    def updatePerformerPersonality(self, performer, feedbackString):
+        oldPersonality = deepcopy(performer.personality)
+        self.updatePerformerAttributes(performer, feedbackString)
+        # prompt = self.processPerformerFeedback(performer, centralTheme, feedback, themeResponse)
+        prompt = feedbackString if feedbackString else ""
+        prompt += self.promptScripts['updatePerformerPersonality']
+        performerPersonality = self.openAIConnector.getResponseFromLLM(prompt, self.systemContext())
+        performer.personality.description = performerPersonality
+        self.printPersonalityChanges(performer.screenName, oldPersonality, performer.personality)
+        return performerPersonality
+
+    def updatePerformerAttributes(self, performer, feedbackString):
+        # prompt = self.processPerformerFeedback(performer, centralTheme, feedback, themeResponse)
+        systemContext = performer.personality.personalityAttributesContext()
+        prompt = f"Current performers values: {feedbackString}. Based on the performer responses given and the current attribute scores," \
+                "suggest adjustments for each performer attributes attribute"
+        context = self.systemContext() + performer.personality.personalityAttributesContext()
+        adjustedScores = self.openAIConnector.adjustPersonalityScores(prompt, performer.personality, 'performer', context)
 
     def postPerformanceUpdatePerformerPersonality(self, performer):
         prompt = (f"{performer.performerString()}"
@@ -139,8 +210,9 @@ class LLMQueryCreator:
                   f"Notice the prompts the userId liked or rejected during the performance."
                   f"Note the following pre and post performance feedback. {performer.feedbackString()}"
                   f"Create an updated personality description for the performer based on this new data.")
+        self.updatePerformerAttributes(performer, performer.feedbackString())
         performerPersonality = self.openAIConnector.getResponseFromLLM(prompt)
-        performer.personality = performerPersonality
+        performer.personality.description = performerPersonality
 
     def getFirstPrompt(self, currentRoom,):
         prompt = self.promptContext(currentRoom)
@@ -259,9 +331,10 @@ class LLMQueryCreator:
     def getNewTheme(self, room, centralTheme):
         prompt = f'Performers have responded to the suggested central theme of "{centralTheme}"'
         prompt += f'The performers responses: {room.themeResponseString()}'
-        prompt += self.promptScripts['tryNewCentralTheme']
+        newPersonality = self.adjustLLMPersonality(room.performers, prompt)
         if room.songCount > 1:
             prompt += self.getPastThemes(room)
+        prompt += self.promptScripts['tryNewCentralTheme']
         return self.openAIConnector.getResponseFromLLM(prompt, self.systemContext(room.performers, centralTheme))
 
     def announceStart(self, room):

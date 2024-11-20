@@ -96,10 +96,12 @@ class Room:
     async def addPlayerToRoom(self, performer):
         self.__performers.append(performer)
         performer.currentRoom = self
-        if self.currentImprovisation is not None and self.currentImprovisation.gameStatus == "improvise":
-            if len(self.performers) > 0:
-                groupPrompt = self.performers[0].currentPrompts['groupPrompt']
-                self.LLMQueryCreator.createPerformerPrompts(self, groupPrompt)
+        if self.currentImprovisation is not None and self.currentImprovisation.gameStatus == "improvise" and len(
+                self.performers) > 0:
+            # groupPrompt = self.performers[0].currentPrompts['groupPrompt']
+            groupPrompt = await self.LLMQueryCreator.getUpdatedPrompts(self, 'groupPrompt')
+            await self.currentImprovisation.getPerformerPrompts(groupPrompt, self)
+            return
 
     def addAudienceToRoom(self, client):
         client.currentRoom = self
@@ -132,8 +134,6 @@ class Room:
     def cancelAllTasks(self):
         for task in self.__scheduledTasks.values():
             task.cancel()
-
-
 
     async def sendMessageToUser(self, message, client):
         response = message.copy()
@@ -169,7 +169,7 @@ class Room:
                 'currentPrompts': performer.currentPrompts,
                 'registeredUser': performer.registeredUser,
                 'roomCreator': performer.roomCreator,
-                'personality': performer.personality
+                'personality': performer.personality.to_dict()
             })
         return gameStateJSON
 
@@ -186,23 +186,17 @@ class Room:
         return response
 
     def determineLLMPersonality(self):
-        feedback = []
+        feedback = ""
         for performer in self.__performers:
             if performer.feedbackLog:
-                feedback.extend(performer.feedbackLog.get('performerLobbyFeedbackResponse'))
-        self.LLMQueryCreator.determineLLMPersonalityFromFeedback(feedback)
+                feedback += f"Performer {performer.userId}: {performer.feedbackString()}"
+        self.LLMQueryCreator.initializeLLMPersonality(self.performers)
 
-    def updatePerformerPersonalities(self):
+    def updatePerformerPersonalities(self, feedback=None):
         for performer in self.__performers:
-            self.LLMQueryCreator.getPerformerPersonality(performer, feedback=True)
+            self.LLMQueryCreator.updatePerformerPersonality(performer, feedback)
             performer.updateDynamo()
 
-    def updatePerformerPersonality(self, currentClient, reaction):
-        for performer in self.__performers:
-            if performer.userId == currentClient.userId:
-                theme = self.currentImprovisation.centralTheme
-                self.LLMQueryCreator.getPerformerPersonality(currentClient, themeResponse=reaction, centralTheme=theme)
-        return
 
     def themeConsensus(self):
         vote = 0
@@ -220,9 +214,10 @@ class Room:
             response += f"Performer {i+1}: {reply.get('reaction')}; {reply.get('suggestion')} "
         return response
 
-    def addThemeReaction(self, player, reaction):
+    def addThemeReaction(self, performer, reaction, feedback=None):
         self.__themeReactions.append(reaction)
-        self.updatePerformerPersonality(player, reaction)
+        self.LLMQueryCreator.updatePerformerPersonality(performer, feedback)
+        performer.updateDynamo()
 
     def clearThemeReactions(self):
         self.themeReactions = []
@@ -232,6 +227,11 @@ class Room:
             {currentPromptTitle: currentPrompt},
             self.currentImprovisation.getCurrentPerformanceTime(),
             reaction)
+        feedbackString = f"Performer {currentClient.userId} has reacted to this prompt. " \
+                         f"{currentPromptTitle}: {currentPrompt}. " \
+                         f"Their reaction is {reaction}"
+        self.LLMQueryCreator.updatePerformerPersonality(currentClient, feedbackString)
+        self.LLMQueryCreator.adjustLLMPersonality(self.performers, feedbackString)
         if 'endSong' != self.currentImprovisation.gameStatus:
             match reaction:
                 case 'moveOn':
@@ -312,7 +312,12 @@ class Room:
                 'gameState': self.prepareGameStateResponse('debrief')
                 }
 
-    async def startNewSong(self):
+    async def startNewSong(self, performers):
+        feedbackString = f"Here is a summary of all feedback from this performance. "
+        for performer in self.performers:
+            feedbackString += performer.feedbackString()
+        self.LLMQueryCreator.adjustLLMPersonality(performers, feedbackString)
+        self.LLMQueryCreator.getNewLLMPersonality(performers)
         for performer in self.__performers:
             performer.resetPerformer()
         self.addImprovisation()
@@ -320,3 +325,4 @@ class Room:
         self.__themeApproved = False
         self.currentImprovisation.gameStatus = "newCentralTheme"
         self.LLMQueryCreator.refreshPerformanceLogs()
+        return

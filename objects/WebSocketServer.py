@@ -9,6 +9,8 @@ from objects.LLMQueryCreator import LLMQueryCreator
 import http.server
 import socketserver
 import threading
+from util.awsSecretRetrieval import origins
+
 
 class WebSocketServer:
     def __init__(self):
@@ -17,6 +19,11 @@ class WebSocketServer:
         self.pingInterval = 20
 
     async def handleConnection(self, websocket, path):
+        origin = websocket.request_headers.get("Origin")
+        allowedOrigins = origins()
+        if origin not in allowedOrigins:
+            await websocket.close(code=4000, reason="Origin not allowed")
+            return
         currentClient = None
         websocketId = str(websocket.id)
 
@@ -44,6 +51,16 @@ class WebSocketServer:
                         currentPlayer = incomingMessage.get('currentPlayer')
                         roomName = incomingMessage.get("roomName", "lobby")
                         currentRoom = self.currentRooms.get(roomName)
+                        if not currentRoom:
+                            response =  {
+                                'action': 'invalid room name',
+                                'userId': [currentClient.userId],
+                                'clients': [currentClient],
+                                'message': "Enter the room you would like to join.",
+                                'responseRequired': "joinRoom",
+                                'responseAction': 'joinRoom'
+                            }
+                            await self.currentRooms['lobby'].handleResponse(response)
                         if currentPlayer == 'audience':
                             print(f"Audience message received")
                             response = await filter.handleMessage(incomingMessage, currentRoom)
