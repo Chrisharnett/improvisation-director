@@ -1,7 +1,6 @@
 from util.Dynamo.userTableClient import UserTableClient
 from util.Dynamo.connections import getDynamoDbConnection
 from objects.Personalities import PerformerPersonality
-from datetime import datetime
 from decimal import Decimal
 
 class Performer:
@@ -12,8 +11,7 @@ class Performer:
         self.__userId = userId
         self.__screenName = screenName
         self.__instrument = instrument
-        # self.__currentPrompts = {}
-        # self.__performerPrompts = {}
+        self.__currentPrompts = {}
         self.__feedbackLog = {}
         self.__promptHistory = []
         self.__registeredUser = False
@@ -53,25 +51,13 @@ class Performer:
     def instrument(self, instrument):
         self.__instrument = instrument
 
-    # @property
-    # def currentPrompts(self):
-    #     return self.__currentPrompts
-    #
-    # @currentPrompts.setter
-    # def currentPrompts(self, currentPrompts):
-    #     self.__currentPrompts = currentPrompts
+    @property
+    def currentPrompts(self):
+        return self.__currentPrompts
 
-    # @property
-    # def performerPrompts(self):
-    #     return self.__performerPrompts
-    #
-    # @property
-    # def currentPrompt(self):
-    #     return self.__performerPrompts[-1]
-    #
-    # @currentPrompt.setter
-    # def currentPrompt(self, prompt):
-    #     self.__performerPrompts[datetime.now().isoformat()] = {prompt}
+    @currentPrompts.setter
+    def currentPrompts(self, currentPrompts):
+        self.__currentPrompts = currentPrompts
 
     @property
     def promptHistory(self):
@@ -118,26 +104,27 @@ class Performer:
     def currentRoom(self, currentRoom):
         self.__currentRoom = currentRoom
 
-    # def addPrompt(self, newPrompt, elapsedTime):
-    #     for promptTitle, prompt in newPrompt.items():
-    #         if prompt:
-    #             self.__currentPrompts[promptTitle] = {
-    #                 'prompt': prompt,
-    #                 'timeStamp': elapsedTime
-    #             }
-    #             print(f'{self.screenName} - {promptTitle} - {prompt}')
-    #
-    # def logPrompt(self, prompt, elapsedTime, reaction=None):
-    #     currentTime = int(elapsedTime)
-    #     logPrompt = {
-    #         'promptTitle': list(prompt.keys())[0],
-    #         'prompt': list(prompt.values())[0],
-    #         'timeStamp': currentTime,
-    #         'reaction': reaction,
-    #         'userId': self.__userId
-    #     }
-    #     self.__promptHistory.append(logPrompt)
-    #     return
+
+    def addPrompt(self, newPrompt, elapsedTime):
+        for promptTitle, prompt in newPrompt.items():
+            if prompt:
+                self.__currentPrompts[promptTitle] = {
+                    'prompt': prompt,
+                    'timeStamp': elapsedTime
+                }
+                print(f'{self.screenName} - {promptTitle} - {prompt}')
+
+    def logPrompt(self, prompt, elapsedTime, reaction=None):
+        currentTime = int(elapsedTime)
+        logPrompt = {
+            'promptTitle': list(prompt.keys())[0],
+            'prompt': list(prompt.values())[0],
+            'timeStamp': currentTime,
+            'reaction': reaction,
+            'userId': self.__userId
+        }
+        self.__promptHistory.append(logPrompt)
+        return
 
     def addAndLogPrompt(self, prompt, elapsedTime):
         self.addPrompt(prompt, elapsedTime)
@@ -201,15 +188,5 @@ class Performer:
         for key, value in playerProfileData.items():
             if hasattr(self, key) and value is not None:
                 setattr(self, key, value)
-
-    def toDict(self):
-        return ({
-            'screenName': self.screenName or '',
-            'instrument': self.instrument or '',
-            'userId': self.userId,
-            'registeredUser': self.registeredUser,
-            'roomCreator': self.roomCreator,
-            'personality': self.personality.to_dict()
-        })
 
 

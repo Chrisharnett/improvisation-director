@@ -1,3 +1,5 @@
+import random
+
 from data.PersonalityAttributes import getDescriptions
 from decimal import Decimal
 
@@ -36,6 +38,17 @@ class Personality:
     def weight(self, weight):
         self.__weight = weight
 
+    def updatePersonality(self, personalityUpdates):
+        descriptionUpdate = personalityUpdates.get('description')
+        attributesUpdate = personalityUpdates.get('attributes')
+        if descriptionUpdate:
+            self.description = descriptionUpdate
+        if attributesUpdate:
+            for attributeName, attributeValue in attributesUpdate.items():
+                if attributeName in self.attributes:
+                    self.attributes[attributeName] = attributeValue
+        return
+
     def updateAttribute(self, attribute, value):
         if attribute in self.attributes:
             self.attributes[attribute] = round(max(0, min(10, value)), 2)  # Keep score between 0-10
@@ -58,12 +71,24 @@ class Personality:
     def attributeString(self):
         return ', '.join(f"{k}: {v}" for k, v in self.attributes.items())
 
+    def attributeNames(self):
+        return', '.join(f"{k}" for k, v in self.attributes.items())
+
     def personalityAttributesContext(self, context='performer'):
         contextList = []
         for attr, value in self.attributes.items():
             desc = next((d["description"] for d in getDescriptions(context) if d["name"] == attr), 'No description available')
             contextList.append(f"{attr} ({value}): {desc}")
         return ".".join(contextList)
+
+    def attributeObject(self):
+        attributeObject = ""
+        for k, v in self.attributes.items():
+            if len(attributeObject) > 0:
+                attributeObject += ', '
+            value = random.randint(0, 10)
+            attributeObject += "{'name': " + k + ", {'value': " + str(value) + '}'
+        return attributeObject
 
     def to_dict(self):
         return {
@@ -85,7 +110,9 @@ class PerformerPersonality(Personality):
         self.attributes["Musical Knowledge"] = musicalKnowledge
 
     def personalityAttributesContext(self):
-        return f"A Performer's personality attributes are: {super().personalityAttributesContext(context='performer')}"
+        return (f"A Performer's personality attributes are: {super().personalityAttributesContext(context='performer')}"
+               "Your response be in the following format: {'description': 'A 10 word description of the personality',"
+               "'attributes':  " + super().attributeObject() + '}')
 
 class LLMPersonality(Personality):
     def __init__(self, promptLength=5, focusOnInteraction=5, abstractness=5, **attributes):
@@ -96,5 +123,8 @@ class LLMPersonality(Personality):
         self.attributes['Abstractness'] = abstractness
 
     def personalityAttributesContext(self):
-        return f"An LLM's personality attributes are: {super().personalityAttributesContext(context='llm')}"
+        return f"An LLM's personality attributes are: {super().personalityAttributesContext(context='llm')}." \
+               "Your response be in the following format: {'description': 'A 10 word description of the personality'," \
+               "'attributes':  " + super().attributeObject() + '}'
+
 

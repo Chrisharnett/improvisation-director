@@ -39,7 +39,7 @@ class WebSocketServer:
                 self.connectedClients[websocketId] = currentClient
                 asyncio.create_task(self.sendPeriodicGameState(currentClient))
 
-            filter = MessageFilter(currentClient, self.currentRooms, queryCreator)
+            filter = MessageFilter(currentClient, self.currentRooms, self.currentRooms['lobby'].LLMQueryCreator)
 
             # Now we wait for any incoming messages from the client
             async for message in websocket:

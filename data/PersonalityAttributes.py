@@ -76,6 +76,12 @@ descriptions = [
         scale="0-10",
         performerDescription="Measures the degree to which the performer interacts and communicates with others during a performance.",
         llmDescription="Reflects the LLM's emphasis on directing performers to indirect. A high score indicates the LLM gives specific directions on who should be playing when and with whom, and shapes the music through changes in instrumentation and instrumet roles. A low score indicates the LLM leaves those decisions to the performers."
+    ),
+    AttributeDescription(
+        name="Abstractness",
+        scale="0-10",
+        performerDescription="Measures the degree to which the performer enjoys prompts that emphasis non-musical or programmatic ideas.",
+        llmDescription="Reflects the LLM's emphasis on directing performers with abstract, non-musical prompts. A low score indicates a preference for clear, understandable and musical directions. For example. Play a blues in Bb in 4/4 at 144 bpm. A high score indicates a preference for abstract, obliques prompts. For example: Play the sound of strawberries, or, Play when you feel right."
     )
 ]
 
