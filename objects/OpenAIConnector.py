@@ -329,6 +329,7 @@ class OpenAIConnector:
             print(f"Retrying in {sleep_time} seconds...")
             time.sleep(sleep_time)
 
+
     def userOptionFeedback(self, prompt):
         systemMessage = (f"{self.getSystemMessage()}"
                         "The performance has not started yet."
