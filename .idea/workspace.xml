@@ -5,17 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6becd639-e16e-4a97-8e3a-959372b39e7b" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/objects/Prompt.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/PersonalityAttributes.py" beforeDir="false" afterPath="$PROJECT_DIR$/data/PersonalityAttributes.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/Improvisation.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Improvisation.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/LLMQueryCreator.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/LLMQueryCreator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/MessageFilter.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/MessageFilter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/OpenAIConnector.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/OpenAIConnector.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/Performer.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Performer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/Personalities.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Personalities.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/Room.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Room.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/objects/WebSocketServer.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/WebSocketServer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -133,6 +123,7 @@
       <workItem from="1732396366587" duration="30451000" />
       <workItem from="1732746086843" duration="48449000" />
       <workItem from="1733421565250" duration="12015000" />
+      <workItem from="1733665149636" duration="472000" />
     </task>
     <servers />
   </component>
@@ -170,6 +161,6 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/IDWebsocket$promptScripts.coverage" NAME="promptScripts Coverage Results" MODIFIED="1732586750719" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/directorPrompts" />
-    <SUITE FILE_PATH="coverage/IDWebsocket$ImprovDirector.coverage" NAME="ImprovDirector Coverage Results" MODIFIED="1733513109617" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/IDWebsocket$ImprovDirector.coverage" NAME="ImprovDirector Coverage Results" MODIFIED="1733514128803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>
