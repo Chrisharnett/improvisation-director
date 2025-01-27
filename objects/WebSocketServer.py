@@ -11,12 +11,12 @@ import socketserver
 import threading
 from util.awsSecretRetrieval import origins
 
-
 class WebSocketServer:
     def __init__(self):
         self.connectedClients = {}
         self.currentRooms = {}
         self.pingInterval = 20
+        self.previousSessions = {}
 
     async def handleConnection(self, websocket, path):
         origin = websocket.request_headers.get("Origin")
@@ -24,22 +24,28 @@ class WebSocketServer:
         if origin not in allowedOrigins:
             await websocket.close(code=4000, reason="Origin not allowed")
             return
-        currentClient = None
+        # currentClient = None
         websocketId = str(websocket.id)
+        currentClient = Performer(websocket)
+
+        queryCreator = LLMQueryCreator()
+        roomName = "lobby"
+        room = self.currentRooms.get(roomName) or Room(LLMQueryCreator=queryCreator, roomName=roomName)
+        await room.addPlayerToRoom(currentClient)
+        self.currentRooms[roomName] = room
+        print(f"🔄 New connection assigned to the lobby.")
+
+        self.connectedClients[websocketId] = currentClient
+        filter = MessageFilter(currentClient, self.currentRooms, self.currentRooms['lobby'].LLMQueryCreator)
 
         try:
-            currentClient = Performer(websocket)
-            if websocketId not in self.connectedClients:
-                # Send a welcome message immediately upon connection
-                queryCreator = LLMQueryCreator()
-                roomName = "lobby"  # Assign the client to the lobby by default
-                room = self.currentRooms.get(roomName) or Room(LLMQueryCreator=queryCreator, roomName=roomName)
-                await room.addPlayerToRoom(currentClient)
-                self.currentRooms[roomName] = room
-                self.connectedClients[websocketId] = currentClient
-                asyncio.create_task(self.sendPeriodicGameState(currentClient))
-
-            filter = MessageFilter(currentClient, self.currentRooms, self.currentRooms['lobby'].LLMQueryCreator)
+            # if websocketId not in self.connectedClients:
+            #     # Send a welcome message immediately upon connection
+            #     queryCreator = LLMQueryCreator()
+            #     roomName = "lobby"  # Assign the client to the lobby by default
+            #     room = self.currentRooms.get(roomName) or Room(LLMQueryCreator=queryCreator, roomName=roomName)
+            #     await room.addPlayerToRoom(currentClient)
+            #     self.currentRooms[roomName] = room
 
             # Now we wait for any incoming messages from the client
             async for message in websocket:
@@ -48,10 +54,11 @@ class WebSocketServer:
                     try:
                         incomingMessage = json.loads(message)
                         print(f"Incoming Message: {incomingMessage.get('action')}")
-                        currentPlayer = incomingMessage.get('currentPlayer')
+                        currentPlayer = incomingMessage.get('currentPlayer', None)
                         roomName = incomingMessage.get("roomName", "lobby")
+                        action = incomingMessage.get('action')
                         currentRoom = self.currentRooms.get(roomName)
-                        if not currentRoom:
+                        if not currentRoom and action != "rejoinRoom":
                             response =  {
                                 'action': 'invalid room name',
                                 'userId': [currentClient.userId],
@@ -61,10 +68,21 @@ class WebSocketServer:
                                 'responseAction': 'joinRoom'
                             }
                             await self.currentRooms['lobby'].handleResponse(response)
+
                         if currentPlayer == 'audience':
                             print(f"Audience message received")
                             response = await filter.handleMessage(incomingMessage, currentRoom)
                             await currentRoom.handleResponse(response)
+                        if action == "rejoinRoom":
+                            userId = currentPlayer.get('userId', None)
+                            previousRoomName = self.previousSessions.get(userId)
+                            print(f"Rejoin Room: {currentPlayer.get('screenName', 'AUDIENCE')}")
+                            if previousRoomName and previousRoomName in self.currentRooms:
+                                room = self.currentRooms[previousRoomName]
+                                await room.playerRejoinRoom(currentClient, currentPlayer)
+                                print(f"✅ Reconnected to room: {previousRoomName}")
+                                response = room.prepareGameStateResponse("rejoinRoom")
+                                await room.handleResponse(response)
                         else:
                             screenName = currentPlayer.get('screenName') if currentPlayer else websocketId
                             print(f"{screenName}. MESSAGE: {incomingMessage}")
@@ -74,8 +92,9 @@ class WebSocketServer:
                                     currentClient.userId = userId
                             if currentRoom:
                                 response = await filter.handleMessage(incomingMessage, currentRoom)
-                                if response.get('gameState'):
-                                    newRoomName = response.get('gameState').get('roomName')
+                                currentGameState = response.get('gameState')
+                                if currentGameState:
+                                    newRoomName = currentGameState.get('roomName')
                                     if newRoomName:
                                         currentRoom = self.currentRooms.get(newRoomName)
                                 await currentRoom.handleResponse(response)
@@ -102,20 +121,26 @@ class WebSocketServer:
             if currentClient:
                 self.handleDisconnection(currentClient)
 
-    async def sendPeriodicGameState(self, client):
-        try:
-            while True:
-                await asyncio.sleep(self.pingInterval)
-                currentRoom = client.currentRoom
-                if currentRoom and (len(currentRoom.performers) > 0):
-                    response = currentRoom.prepareGameStateResponse('heartbeat')
-                    await currentRoom.broadcastMessage(response)
-        except websockets.ConnectionClosed:
-            print(f"WebSocket {client.websocket.id} closed during periodic gameState updates.")
+    # async def sendPeriodicGameState(self, client):
+    #     try:
+    #         while True:
+    #             await asyncio.sleep(self.pingInterval)
+    #             currentRoom = client.currentRoom
+    #             if currentRoom and (len(currentRoom.performers) > 0) and currentRoom.improvisation:
+    #                 response = currentRoom.prepareGameStateResponse('heartbeat')
+    #                 await currentRoom.broadcastMessage(response)
+    #     except websockets.ConnectionClosed:
+    #         print(f"WebSocket {client.websocket.id} closed during periodic gameState updates.")
 
     def handleDisconnection(self, client):
         for room in self.currentRooms.values():
-            room.leaveRoom(client)
+            if room.roomName != "lobby":
+                userId = client.userId
+                if client in room.performers:
+                    # ✅ Store user's last known room before removing them
+                    self.previousSessions[userId] = room.roomName
+                    room.leaveRoom(client)
+
         websocketId = str(client.websocket.id)
         if websocketId in self.connectedClients:
             del self.connectedClients[websocketId]

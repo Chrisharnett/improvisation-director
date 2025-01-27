@@ -113,17 +113,18 @@ class MessageFilter:
 
     async def handleGetCurrentPlayer(self, message):
         currentPlayer = message.get('currentPlayer')
-        userId = currentPlayer.get('userId')
-        if not self.currentClient.userId:
-            self.currentClient.userId = userId
-        playerData = self.handleGetUserData(userId)
-        updatedData = {key: playerData[key] for key in ['screenName', 'instrument', 'personality'] if
-                       key in playerData}
-        self.currentClient.updatePlayerProfile(updatedData)
-        return {
-            'action': 'playerProfileData',
-            'currentPlayer': self.currentClient.playerProfile,
-            'clients': [self.currentClient]}
+        if currentPlayer:
+            userId = currentPlayer.get('userId')
+            if not self.currentClient.userId:
+                self.currentClient.userId = userId
+            playerData = self.handleGetUserData(userId)
+            updatedData = {key: playerData[key] for key in ['screenName', 'instrument', 'personality'] if
+                           key in playerData}
+            self.currentClient.updatePlayerProfile(updatedData)
+            return {
+                'action': 'playerProfileData',
+                'currentPlayer': self.currentClient.playerProfile,
+                'clients': [self.currentClient]}
 
     async def handleUpdateProfile(self, message):
         currentPlayer = message.get('currentPlayer')
@@ -131,7 +132,7 @@ class MessageFilter:
                        ['screenName', 'instrument', 'personality']
                        if key in currentPlayer}
         self.currentClient.updatePlayerProfile(updatedData)
-        self.handleUpdateDynamo()
+        self.currentClient.updateDynamo()
         return {
             'action': 'playerProfileData',
             'currentPlayer': self.currentClient.playerProfile,
@@ -147,9 +148,9 @@ class MessageFilter:
 
     async def handleGetStarted(self, message):
         welcomeMessage = self.__currentRoom.sayHello()
-        # welcomeMessage = "Hello, I'm the improvDirector. Would you like to create a new performance, or join an existing performance?"
         return {'action': 'welcome',
                 'gameStatus': 'welcome',
+                'responseRequired': False,
                 'roomName': self.__currentRoomName,
                 'message': welcomeMessage,
                 'clients': [self.__currentClient]}
@@ -161,25 +162,11 @@ class MessageFilter:
             response = table.getItem({'sub': sub})
             userData = response['Item']
             personality = userData.get('personality')
-            attributes = personality.get('attributes')
+            attributes = personality.get('attributes', None)
             if personality and attributes:
                 attributeValuesToFloat = {key: float(value) for key, value in attributes.items()}
                 userData['personality']['attributes'] = attributeValuesToFloat
             return userData
-        except Exception as e:
-            traceback.print_exc()
-
-    def handleUpdateDynamo(self):
-        try:
-            dynamoDb = getDynamoDbConnection()
-            table = UserTableClient(dynamoDb)
-            response = table.putItem({
-                'sub': self.currentClient.userId,
-                'screenName': self.currentClient.screenName,
-                'instrument': self.currentClient.instrument,
-                'personality': self.currentClient.personality.to_decimalDict(),
-            })
-            return response
         except Exception as e:
             traceback.print_exc()
 
@@ -208,7 +195,7 @@ class MessageFilter:
 
             if not currentPlayer.get('screenName') or not currentPlayer.get('instrument'):
                 return self.requestNewPlayerData()
-            self.handleUpdateDynamo()
+            self.currentClient.updateDynamo()
 
         response = await self.handleRoomRegistration(message)
         return response
@@ -252,8 +239,6 @@ class MessageFilter:
 
     async def handleStartPerformance(self, message=None):
         improv = self.currentRoom.currentImprovisation
-        # self.currentRoom.updatePerformerPersonalities()
-        # self.currentRoom.currentImprovisation.initializeImprovDirectorPersonality()
         if not self.currentRoom.themeApproved:
             improv.gameStatus = 'Theme Selection'
             if not self.currentRoom.currentImprovisation.centralTheme:
@@ -288,6 +273,11 @@ class MessageFilter:
         await self.currentRoom.currentImprovisation.initializeGameState()
         response = self.currentRoom.prepareGameStateResponse('newGameState')
         return response
+
+    def handleRequestGameState(self, message):
+        for room in self.currentRooms:
+            if self.currentClient in room.performers:
+                return room.prepareGameStateResponse('improvise')
 
     async def handleEndSong(self, message):
         await self.currentRoom.concludePerformance()
@@ -364,7 +354,6 @@ class MessageFilter:
                     'responseRequired': "",
                     'clients': [self.__currentClient],
                 }
-
             except jwt.InvalidTokenError as e:
                 # Handle specific case of invalid token
                 print("Token verification error:", str(e))

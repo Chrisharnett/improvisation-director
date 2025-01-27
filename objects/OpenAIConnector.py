@@ -2,7 +2,6 @@ from openai import OpenAI
 from util.awsSecretRetrieval import getAISecret
 import json
 import time
-import traceback
 
 class OpenAIConnector:
     def __init__(self):
@@ -233,14 +232,15 @@ class OpenAIConnector:
             time.sleep(sleep_time)
 
     def getPersonality(self, prompt, currentPersonality, personalityType, systemContext=None, max_retries=3,
-                                backoff_factor=2):
+                       backoff_factor=2):
         attempt = 0
         personalityContext = ("A personality describes the musical tendencies of a performer or the improvDirector LLM."
-                              "The personality includes a description that is 10 words or less, and a set of personality attribute scores.")
+                              " The personality includes a description (50 words or less) and a set of personality attribute scores.")
+
         requiredAttributes = list(currentPersonality.attributes.keys())
         systemMessage = (
             f"{self.getSystemMessage()} {personalityContext}"
-            f"This personality is for a {personalityType}. {currentPersonality.personalityAttributesContext()}"
+            f" This personality is for a {personalityType}. {currentPersonality.personalityAttributesContext()}"
         )
 
         if systemContext:
@@ -254,30 +254,36 @@ class OpenAIConnector:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "description":{
+                            "description": {
                                 "type": "string",
-                                "description": "A textual description of the musical personality, of about 10 words.",
+                                "description": "A textual description of the musical personality, about 10 words.",
                             },
-                            "attributes":{
+                            "attributes": {
                                 "type": "array",
-                                "description": "The personality attributes and their scores. ",
+                                "description": "The personality attributes and their scores.",
                                 "items": {
-                                    "name": {
-                                    "type": "string",
-                                    "description": "The name of the attribute."
+                                    "type": "object",
+                                    "properties": {
+                                        "name": {
+                                            "type": "string",
+                                            "description": "The name of the attribute."
+                                        },
+                                        "value": {
+                                            "type": "number",
+                                            "description": "Value for the attribute, ranging between -10 and 10."
+                                        }
                                     },
-                                    "value": {
-                                        "type": "number",
-                                        "description": "Value for the attribute, ranging between -10 and 10."
-                                    }
-                                },
-                            "required": ["attributeName", "value"]
-                        }
+                                    "required": ["name", "value"]
+                                }
+                            }
+                        },
+                        "required": ["description", "attributes"],
+                        "additionalProperties": False
                     }
-                },
-                "required": ["description", "attributes"],
-                "additionalProperties": False
                 }
+
+                # Ensure LLM includes all required attributes
+                systemMessage += f" Ensure the response contains the following attributes: {', '.join(requiredAttributes)}."
 
                 # Make the LLM API call with structured response
                 chatCompletion = self.client.chat.completions.create(
@@ -294,23 +300,24 @@ class OpenAIConnector:
                 structuredOutput = chatCompletion.choices[0].message.function_call.arguments
                 if isinstance(structuredOutput, str):
                     structuredOutput = json.loads(structuredOutput)
+
                 newDescription = structuredOutput.get('description')
                 newAttributes = structuredOutput.get('attributes')
-                attributeNames = [attribute['name'] for attribute in newAttributes]
+                attributeNames = [attr['name'] for attr in newAttributes]
 
-                if newDescription and all(attribute in attributeNames for attribute in requiredAttributes):
+                missingAttributes = [attr for attr in requiredAttributes if attr not in attributeNames]
 
-                    attributes = {attribute['name']: attribute['value'] for attribute in newAttributes}
-                    newPersonality = {'description': newDescription,
-                                      'attributes': attributes}
+                if not missingAttributes and newDescription:
+                    attributes = {attr['name']: attr['value'] for attr in newAttributes}
+                    newPersonality = {'description': newDescription, 'attributes': attributes}
                     currentPersonality.updatePersonality(newPersonality)
                     return currentPersonality
 
-                # If some attributes are missing, raise an error to retry
-                raise KeyError("One or more attributes are missing in the LLM response.")
+                # If some attributes are missing, retry with updated prompt
+                print(f"⚠️ Missing attributes: {missingAttributes}. Adjusting prompt and retrying...")
+                systemMessage += f" Ensure these attributes are present: {', '.join(missingAttributes)}."
 
             except (KeyError, json.JSONDecodeError) as e:
-                # Handle known issues that might occur in the response format
                 print(f"Attempt {attempt + 1}/{max_retries} failed with error: {e}")
 
             except Exception as e:
@@ -319,16 +326,14 @@ class OpenAIConnector:
             # Increment the retry count
             attempt += 1
 
-            # If we've reached the max retries, raise the exception or return an error
             if attempt >= max_retries:
                 print("Max retries reached. Exiting.")
                 return {"error": "Failed to retrieve attributes score adjustments after multiple attempts."}
 
-            # Exponential backoff: wait before retrying
+            # Exponential backoff
             sleep_time = backoff_factor ** attempt
             print(f"Retrying in {sleep_time} seconds...")
             time.sleep(sleep_time)
-
 
     def userOptionFeedback(self, prompt):
         systemMessage = (f"{self.getSystemMessage()}"

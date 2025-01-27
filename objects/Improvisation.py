@@ -183,19 +183,13 @@ class Improvisation:
             await self.schedulePromptUpdate(prompt, userId)
         return
 
-    # def assignNewPrompts(self, newPrompts):
-    #     for userId, prompt in newPrompts.items():
-    #         for performer in self.performers:
-    #             if userId == performer.userId:
-    #                 performer.addAndLogPrompt(prompt, self.getCurrentPerformanceTime())
-
     def createGameLog(self, room):
         performers = []
         for performer in self.performers:
             performers.append({
                 'userId': performer.userId,
                 'instrument': performer.instrument,
-                'personality': performer.personality.to_decimalDict()
+                'personality': performer.personality.toDecimalDict()
             })
         self.__gameLog['roomName'] = f"{room.roomName}-{room.songCount}"
         self.__gameLog['performers'] = performers
@@ -280,48 +274,11 @@ class Improvisation:
         else:
             return 'Start time not set.'
 
-    # async def getPerformerPrompts(self, groupPrompt, room):
-    #     performerPrompts = self.LLMQueryCreator.createPerformerPrompts(room, groupPrompt)
-    #     for userId in performerPrompts.keys():
-    #         for performer in self.performers:
-    #             if performer.userId == userId:
-    #                 performer.addAndLogPrompt(performerPrompts[userId], self.getCurrentPerformanceTime())
-    #                 performer.addAndLogPrompt(groupPrompt, self.getCurrentPerformanceTime())
-    #                 if 'endPrompt' in groupPrompt:
-    #                     if performer.setCurrentPrompts.get('groupPrompt'):
-    #                         del performer.setCurrentPrompts['groupPrompt']
-    #     if 'endPrompt' not in groupPrompt:
-    #         await self.schedulePromptUpdate('performerPrompt', room)
-    #     return
-
     def currentPerformerContext(self):
         performersString = "This performance features the following performers. "
         for performer in self.performers:
             performersString += performer.performerString()
         return performersString
-
-    # def getSortedPromptList(self):
-    #     prompts = []
-    #     for performer in self.performers:
-    #         for prompt in performer.promptHistory:
-    #             prompts.append(prompt)
-    #     return sorted(prompts, key=lambda x: x['timeStamp'])
-    #
-    # def getSortedPromptString(self):
-    #     sortedPrompts = self.getSortedPromptList()
-    #     string = ""
-    #     for i, prompt in enumerate(sortedPrompts):
-    #         timestamp = prompt.get('timeStamp')
-    #         promptTitle = prompt.get('promptTitle')
-    #         currentPrompt = prompt.get('prompt')
-    #         reaction = prompt.get('reaction')
-    #         userId = prompt.get('userId')
-    #         string += f"Prompt {i+1}. Seconds elapsed: {timestamp} . Title: {promptTitle}"
-    #         if promptTitle == "performerPrompt" or reaction:
-    #             string += f"User: {userId}. "
-    #         string += f"Prompt:  {currentPrompt}. "
-    #         string += f"Performer reaction: {reaction}. " if reaction else ""
-    #     return string or None
 
     def initializeImprovDirectorPersonality(self):
         return self.LLMQueryCreator.createYourPersonality(self.room)
@@ -391,6 +348,11 @@ class Improvisation:
                 await self.addPerformerPrompts([newPrompt])
             response = self.room.prepareGameStateResponse('newGameState')
             await self.room.handleResponse(response)
+
+    async def adjustPrompts(self):
+        newPrompts = self.LLMQueryCreator.provideNewPrompts(self.room)
+        await self.setCurrentPrompts(newPrompts)
+        return
 
     def promptsDict(self):
         prompts = []

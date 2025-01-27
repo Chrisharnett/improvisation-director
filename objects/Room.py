@@ -90,9 +90,21 @@ class Room:
         performer.currentRoom = self
         if self.currentImprovisation is not None and self.currentImprovisation.gameStatus == "improvise" and len(
                 self.performers) > 0:
-            groupPrompt = await self.LLMQueryCreator.getUpdatedPrompts(self, 'groupPrompt')
-            await self.currentImprovisation.getPerformerPrompts(groupPrompt, self)
+            # groupPrompt = await self.LLMQueryCreator.getUpdatedPrompts(self, 'groupPrompt')
+            await self.currentImprovisation.adjustPrompts()
             return
+
+    async def playerRejoinRoom(self, newClient, performer):
+        newClient.updateUserData(performer)
+        newClient.currentRoom = self
+        if newClient not in self.performers:
+            self.performers.append(newClient)
+        userId = newClient.userId
+        currentPrompt = self.currentImprovisation.getCurrentPerformerPrompt(userId).get('performerPrompt')
+        currentGroupPrompt = self.currentImprovisation.currentPrompts.get('groupPrompt')
+        await self.currentImprovisation.schedulePromptUpdate(currentPrompt, userId)
+        await self.currentImprovisation.schedulePromptUpdate(currentGroupPrompt)
+        return
 
     def addAudienceToRoom(self, client):
         client.currentRoom = self
@@ -108,9 +120,7 @@ class Room:
         return
 
     async def concludePerformance(self):
-        # finalGroupPrompt = self.LLMQueryCreator.getEndSongPrompt(self)
         await self.currentImprovisation.concludePerformance()
-        # self.currentImprovisation.gameStatus = 'endSong'
         return
 
     def sayHello(self):

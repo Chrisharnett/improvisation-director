@@ -4,20 +4,23 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6becd639-e16e-4a97-8e3a-959372b39e7b" name="Changes" comment="">
+    <list default="true" id="41d629a6-7dbc-42d7-868d-b305b0322c3e" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/IDWebsocket.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/IDWebsocket.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/Improvisation.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Improvisation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/LLMQueryCreator.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/LLMQueryCreator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/MessageFilter.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/MessageFilter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/OpenAIConnector.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/OpenAIConnector.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/Performer.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Performer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/Personalities.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Personalities.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/Room.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/Room.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/objects/WebSocketServer.py" beforeDir="false" afterPath="$PROJECT_DIR$/objects/WebSocketServer.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
-  </component>
-  <component name="FileTemplateManagerImpl">
-    <option name="RECENT_TEMPLATES">
-      <list>
-        <option value="Python Script" />
-      </list>
-    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -25,10 +28,7 @@
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
-  <component name="ProblemsViewState">
-    <option name="selectedTabId" value="CurrentFile" />
-  </component>
-  <component name="ProjectId" id="2o7wbbgALb2BNzGJeVZpiSuMncI" />
+  <component name="ProjectId" id="2q7vnvhvHQwbcHlCnzUxWVfc8gS" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
@@ -38,25 +38,16 @@
     &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/christopherharnett/Library/CloudStorage/OneDrive-CollegeoftheNorthAtlantic/Documents/Software Development/Personal Projects/IDWebsocket/objects&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
     &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;reference.settings.ide.settings.web.browsers&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
-  <component name="RecentsManager">
-    <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/objects" />
-    </key>
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/data" />
-    </key>
-  </component>
   <component name="RunManager">
-    <configuration name="ImprovDirector" type="PythonConfigurationType" factoryName="Python">
+    <configuration name="improvDirector" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="IDWebsocket" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -64,7 +55,7 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="$PROJECT_DIR$/venv/bin/python" />
-      <option name="SDK_NAME" value="Python 3.11 (IDWebsocket)" />
+      <option name="SDK_NAME" value="Python 3.11 (IDWebsocket) (2)" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
@@ -98,69 +89,47 @@
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="6becd639-e16e-4a97-8e3a-959372b39e7b" name="Changes" comment="" />
-      <created>1730233994457</created>
+      <changelist id="41d629a6-7dbc-42d7-868d-b305b0322c3e" name="Changes" comment="" />
+      <created>1734026600780</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1730233994457</updated>
-      <workItem from="1730233998201" duration="645000" />
-      <workItem from="1730246611272" duration="54445000" />
-      <workItem from="1730833578864" duration="4310000" />
-      <workItem from="1730916764411" duration="8844000" />
-      <workItem from="1731023046129" duration="650000" />
-      <workItem from="1731166671406" duration="50087000" />
-      <workItem from="1731379708210" duration="5373000" />
-      <workItem from="1731423539350" duration="6543000" />
-      <workItem from="1731586979152" duration="10659000" />
-      <workItem from="1731681548045" duration="41647000" />
-      <workItem from="1731924131889" duration="267000" />
-      <workItem from="1731929875699" duration="1561000" />
-      <workItem from="1731977715671" duration="1645000" />
-      <workItem from="1731980144219" duration="597000" />
-      <workItem from="1731981253473" duration="440000" />
-      <workItem from="1731985600992" duration="3138000" />
-      <workItem from="1732060380312" duration="7635000" />
-      <workItem from="1732396366587" duration="30451000" />
-      <workItem from="1732746086843" duration="48449000" />
-      <workItem from="1733421565250" duration="12015000" />
-      <workItem from="1733665149636" duration="472000" />
+      <updated>1734026600780</updated>
+      <workItem from="1734026604921" duration="496000" />
+      <workItem from="1734397391661" duration="22000" />
+      <workItem from="1736030351671" duration="533000" />
+      <workItem from="1736252343634" duration="7849000" />
+      <workItem from="1736511188317" duration="445000" />
+      <workItem from="1736511662797" duration="110000" />
+      <workItem from="1736511795507" duration="15277000" />
+      <workItem from="1736608604829" duration="23978000" />
+      <workItem from="1736883813771" duration="2978000" />
+      <workItem from="1737121479534" duration="4811000" />
+      <workItem from="1737594124798" duration="3344000" />
+      <workItem from="1737643506711" duration="1261000" />
+      <workItem from="1737645468302" duration="853000" />
+      <workItem from="1737646464188" duration="5414000" />
+      <workItem from="1737720102448" duration="4504000" />
+      <workItem from="1737810113137" duration="6449000" />
+      <workItem from="1737851650235" duration="7532000" />
     </task>
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
-  <component name="Vcs.Log.Tabs.Properties">
-    <option name="TAB_STATES">
-      <map>
-        <entry key="MAIN">
-          <value>
-            <State />
-          </value>
-        </entry>
-      </map>
-    </option>
-  </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/objects/LLMQueryCreator.py</url>
-          <line>171</line>
-          <option name="timeStamp" value="285" />
+          <url>file://$PROJECT_DIR$/objects/MessageFilter.py</url>
+          <line>277</line>
+          <option name="timeStamp" value="42" />
         </line-breakpoint>
       </breakpoints>
-      <default-breakpoints>
-        <breakpoint type="python-exception">
-          <properties notifyOnTerminate="true" exception="BaseException">
-            <option name="notifyOnTerminate" value="true" />
-          </properties>
-        </breakpoint>
-      </default-breakpoints>
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/IDWebsocket$promptScripts.coverage" NAME="promptScripts Coverage Results" MODIFIED="1732586750719" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/directorPrompts" />
-    <SUITE FILE_PATH="coverage/IDWebsocket$ImprovDirector.coverage" NAME="ImprovDirector Coverage Results" MODIFIED="1733514128803" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/IDWebsocket$promptScripts.coverage" NAME="promptScripts Coverage Results" MODIFIED="1737726637065" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/directorPrompts" />
+    <SUITE FILE_PATH="coverage/IDWebsocket$improvDirector.coverage" NAME="improvDirector Coverage Results" MODIFIED="1737646985125" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
 </project>

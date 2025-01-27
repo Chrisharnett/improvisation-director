@@ -46,7 +46,7 @@ class Personality:
         if attributesUpdate:
             for attributeName, attributeValue in attributesUpdate.items():
                 if attributeName in self.attributes:
-                    self.attributes[attributeName] = attributeValue
+                    self.attributes[attributeName] = float(attributeValue)
         return
 
     def updateAttribute(self, attribute, value):
@@ -90,13 +90,13 @@ class Personality:
             attributeObject += "{'name': " + k + ", {'value': " + str(value) + '}'
         return attributeObject
 
-    def to_dict(self):
+    def toDict(self):
         return {
             "description": self.__description,
             "attributes": self.__attributes
         }
 
-    def to_decimalDict(self):
+    def toDecimalDict(self):
         decimalAttributes = {k: Decimal(str(v)) for k, v in self.attributes.items()}
         return {
             "description": self.__description,

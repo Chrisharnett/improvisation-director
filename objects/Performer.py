@@ -12,8 +12,6 @@ class Performer:
         self.__userId = userId
         self.__screenName = screenName
         self.__instrument = instrument
-        # self.__currentPrompts = {}
-        # self.__performerPrompts = {}
         self.__feedbackLog = {}
         self.__promptHistory = []
         self.__registeredUser = False
@@ -118,31 +116,11 @@ class Performer:
     def currentRoom(self, currentRoom):
         self.__currentRoom = currentRoom
 
-    # def addPrompt(self, newPrompt, elapsedTime):
-    #     for promptTitle, prompt in newPrompt.items():
-    #         if prompt:
-    #             self.__currentPrompts[promptTitle] = {
-    #                 'prompt': prompt,
-    #                 'timeStamp': elapsedTime
-    #             }
-    #             print(f'{self.screenName} - {promptTitle} - {prompt}')
     #
-    # def logPrompt(self, prompt, elapsedTime, reaction=None):
-    #     currentTime = int(elapsedTime)
-    #     logPrompt = {
-    #         'promptTitle': list(prompt.keys())[0],
-    #         'prompt': list(prompt.values())[0],
-    #         'timeStamp': currentTime,
-    #         'reaction': reaction,
-    #         'userId': self.__userId
-    #     }
-    #     self.__promptHistory.append(logPrompt)
+    # def addAndLogPrompt(self, prompt, elapsedTime):
+    #     self.addPrompt(prompt, elapsedTime)
+    #     self.logPrompt(prompt, elapsedTime)
     #     return
-
-    def addAndLogPrompt(self, prompt, elapsedTime):
-        self.addPrompt(prompt, elapsedTime)
-        self.logPrompt(prompt, elapsedTime)
-        return
 
     def logFeedback(self, type, question, response, options=None):
         if type not in self.__feedbackLog:
@@ -171,8 +149,9 @@ class Performer:
         return description
 
     def updateDynamo(self):
-        personality = self.personality.to_dict()
-        personality["attributes"] = {k: Decimal(str(v)) for k, v in personality["attributes"].items()}
+        # personality = self.personality.toDict()
+        personality = self.personality.toDecimalDict()
+        # personality["attributes"] = {k: Decimal(str(v)) for k, v in personality["attributes"].items()}
         self.__table.putItem({
             'sub': self.__userId,
             'screenName': self.__screenName,
@@ -181,9 +160,17 @@ class Performer:
         })
 
     def updateUserData(self, message):
-        self.__userId = message.get('userId', self.__userId)
-        self.__instrument = message.get('instrument', self.__instrument)
-        self.__screenName = message.get('screenName', self.__screenName)
+        self.userId = message.get('userId', self.userId)
+        self.instrument = message.get('instrument', self.instrument)
+        self.screenName = message.get('screenName', self.screenName)
+        self.promptHistory = message.get('promptHistory', self.promptHistory)
+        self.registeredUser = message.get('registeredUser', self.registeredUser)
+        self.roomCreator = message.get('roomCreator', self.roomCreator)
+        updatedPersonality = message.get('personality', None)
+        if updatedPersonality:
+            self.personality.updatePersonality(updatedPersonality)
+
+        return
 
     def resetPerformer(self):
         self.__currentPrompts = {}
@@ -192,15 +179,23 @@ class Performer:
 
     @property
     def playerProfile(self):
-        return {'userId': self.__userId,
-                'screenName': self.__screenName,
-                'instrument': self.__instrument,
-                'personality': self.__personality,}
+        userId = self.userId
+        screenName = self.screenName
+        instrument = self.instrument
+        personality = self.personality.toDict()
+        return {'userId': userId,
+                'screenName': screenName,
+                'instrument': instrument,
+                'personality': personality,}
 
     def updatePlayerProfile(self, playerProfileData):
         for key, value in playerProfileData.items():
-            if hasattr(self, key) and value is not None:
-                setattr(self, key, value)
+            if key != "personality":
+                if hasattr(self, key) and value is not None:
+                    setattr(self, key, value)
+            else:
+                self.personality.updatePersonality(value)
+
 
     def toDict(self):
         return ({
@@ -209,7 +204,8 @@ class Performer:
             'userId': self.userId,
             'registeredUser': self.registeredUser,
             'roomCreator': self.roomCreator,
-            'personality': self.personality.to_dict()
+            'personality': self.personality.toDict()
+            # 'personality': self.personality.toDict()
         })
 
 

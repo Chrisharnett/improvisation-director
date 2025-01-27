@@ -55,13 +55,7 @@ class LLMQueryCreator:
         self.__personality = personality
 
     def systemContext(self):
-        context = f"You are the director of this musical improvisation. "
-        f'The musicians depend on your prompts to direct and inspire their performance. ' \
-        f'A prompt initiates change in the current performance.' \
-        f'All prompts are a maximum of 10 words. ' \
-        f'The centralTheme is the overall concept we will explore in performance.' \
-        f'A groupPrompt describes how the group should perform for a section of a performance in support of the centralTheme.' \
-        f'A performerPrompt is a specific prompt to a particular performer describing how they should approach performing in support of the groupPrompt.'
+        context = self.promptScripts['systemContext']
         return context
 
     def gettingToKnowYou(self):
@@ -87,9 +81,7 @@ class LLMQueryCreator:
         print(changeSummary)
 
     def createYourPersonality(self, room):
-        prompt = "Based on the performers in this improvisation, create a personality for the improvDirector in this improvisation. " \
-                 "The personality should be designed to augment the strengths of the performers, " \
-                 "with perhaps one or 2 surprise values to create interest. "
+        prompt = self.promptScripts['createYourPersonality']
         return self.fineTuneYourPersonality(room, prompt)
 
     def fineTuneYourPersonality(self, room, prompt):
@@ -126,7 +118,7 @@ class LLMQueryCreator:
 
     def nextSongPersonality(self, room):
         prompt = f"Performers are ready for another improvisation. Create a new improvDirector personality to lead this improvisation." \
-                 f" Their personality must be unique from these personalities already explored in this room. " \
+                 f" This personality must be unique from the following personalities. " \
                  f"{room.pastLLMPersonalities()} ." \
                  f"Include a personality description and attributes as described. "
         return self.fineTuneYourPersonality(room, prompt)
@@ -272,11 +264,6 @@ class LLMQueryCreator:
         return self.openAIConnector.getResponseFromLLM(themePrompt, self.systemContext())
 
     def announceStart(self, room):
-        prompt = "You will start the improvisation and provide the initial prompts soon. " \
-                 "Make a brief welcome announcement to get everyone's attention. " \
-                 "Make them aware we are about to start."
-        prompt += room.currentImprovisation.currentPromptContext()
-        # return self.openAIConnector.getResponseFromLLM(prompt, self.systemContext(room))
         return "Just getting things ready. One Moment. "
 
     def aboutMe(self):
